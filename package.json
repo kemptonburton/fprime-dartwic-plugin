@@ -1,0 +1,11 @@
+{
+  "name": "fprime-dartwic-plugin",
+  "private": true,
+  "version": "2.0.0-beta.1",
+  "type": "module",
+  "scripts": {
+    "verify": "node scripts/verify.mjs",
+    "package": "node scripts/package.mjs",
+    "package-debug": "node scripts/package.mjs --debug"
+  }
+}

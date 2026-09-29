@@ -1,0 +1,8 @@
+build/
+plugin/
+plugin.zip
+plugin-debug.zip
+node_modules/
+test/__pycache__/
+*.pyc
+deployment-settings.json
