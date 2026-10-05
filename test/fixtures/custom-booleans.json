@@ -1,0 +1,16 @@
+{
+  "constants": [
+    {"qualifiedName": "FW_SERIALIZE_TRUE_VALUE", "value": 170},
+    {"qualifiedName": "FW_SERIALIZE_FALSE_VALUE", "value": 85}
+  ],
+  "typeDefinitions": [],
+  "commands": [
+    {"name": "Test.ENABLE", "opcode": 1, "formalParams": [
+      {"name": "enabled", "type": {"name": "bool", "kind": "bool", "size": 8}}
+    ]}
+  ],
+  "telemetryChannels": [
+    {"name": "Test.Enabled", "id": 1, "type": {"name": "bool", "kind": "bool", "size": 8}}
+  ],
+  "events": []
+}

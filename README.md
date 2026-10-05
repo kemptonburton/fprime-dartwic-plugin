@@ -50,7 +50,16 @@ Selecting a catalog command sends a TEMPEST operation to the bridge. The bridge 
 
 A successful response with `status: "sent"` means the TC frame was written to the TCP connection. It does **not** confirm that F´ accepted or executed the command; `execution_confirmed` remains `false`. This CCSDS link does not return a command execution acknowledgement to the bridge. Check subsequent F´ event/telemetry output for deployment-specific evidence of execution.
 
+Boolean arguments use the standard F´ wire values: `true` is `0xFF` and `false`
+is `0x00`. Boolean telemetry and event arguments follow the same convention;
+other byte values are reported as decode errors. When the dictionary includes
+`FW_SERIALIZE_TRUE_VALUE` and `FW_SERIALIZE_FALSE_VALUE`, the bridge uses those
+constants instead, including deployment overrides.
+
 ## Build and package from a clone
+
+Version 2.0.0 requires DARTWIC Engine and Interface 2.0.0 or newer. Core
+2.0.0 packages will be published separately from this plugin release.
 
 Windows x64 builds use Visual Studio 2022 with ClangCL, CMake, Node.js, and
 vcpkg. Set `VCPKG_ROOT` to a vcpkg checkout, or initialize a local `vcpkg`
@@ -85,9 +94,13 @@ For the native Windows bridge test, supply a generated topology dictionary:
 ```powershell
 $env:FPRIME_BRIDGE_TEST_DICTIONARY = 'C:/path/to/DeploymentTopologyDictionary.json'
 cmake --preset windows-clang-debug -DFPRIME_BRIDGE_TEST_DICTIONARY=$env:FPRIME_BRIDGE_TEST_DICTIONARY
-cmake --build --preset build-windows-clang-debug --target fprime_bridge_windows_test
+cmake --build --preset build-windows-clang-debug --target fprime_dictionary_test fprime_bridge_windows_test
 ctest --test-dir build/windows-clang-debug -C Debug --output-on-failure
 ```
+
+The `fprime_dictionary` test uses a bundled synthetic dictionary and requires
+no deployment dictionary or TCP connection. It checks boolean arguments,
+nested boolean types, adjacent numeric arguments, and boolean telemetry/events.
 
 The Hadron-specific helper `test/GenerateHadronDictionary.ps1` can generate the
 dictionary from a neighboring `Hadron-FSW` checkout. The Windows test checks

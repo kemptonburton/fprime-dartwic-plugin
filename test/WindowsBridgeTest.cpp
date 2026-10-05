@@ -263,6 +263,32 @@ int main(int argc, char** argv) {
         recvAll(socket, tail, direct_length - 5);
         tc.insert(tc.end(), tail.begin(), tail.end());
         require(read32(tc.data() + 13) == command_opcode, "catalog command opcode invalid");
+        // A real dictionary command with a string followed by a bool verifies
+        // the outbound wire bytes. This socket is a fixture, not flight software.
+        uint32_t remove_file_opcode = 0;
+        for (const auto& command : dictionary.at("commands"))
+            if (command.at("name") == "FileHandling.fileManager.RemoveFile")
+                remove_file_opcode = command.at("opcode").get<uint32_t>();
+        require(remove_file_opcode != 0, "Hadron boolean command missing");
+        for (const bool ignore_errors : {true, false}) {
+            transport.send({TEMPEST::Message::Kind::Request,
+                ignore_errors ? "boolean-true" : "boolean-false", "FileHandling.fileManager.RemoveFile",
+                {{"fileName", "fixture"}, {"ignoreErrors", ignore_errors}}});
+            recvAll(socket, tc, 5);
+            const size_t bool_length = (read16(tc.data() + 2) & 0x03ff) + 1;
+            require(bool_length == 29, "boolean command frame length invalid");
+            recvAll(socket, tail, bool_length - 5);
+            tc.insert(tc.end(), tail.begin(), tail.end());
+            require(read16(tc.data() + tc.size() - 2) == crc(tc.data(), tc.size() - 2),
+                "boolean command frame CRC invalid");
+            require(read32(tc.data() + 13) == remove_file_opcode,
+                "boolean command opcode invalid");
+            require(read16(tc.data() + 17) == 7
+                && std::string(tc.begin() + 19, tc.begin() + 26) == "fixture",
+                "boolean command preceding string invalid");
+            require(tc[26] == (ignore_errors ? 0xFF : 0x00),
+                "boolean command must use F Prime FF/00 wire values");
+        }
         {
             std::unique_lock lock(mutex);
             require(changed.wait_for(lock, 3s, [&] {

@@ -51,6 +51,19 @@ add_custom_target(copy_engine_plugin ALL
 
 option(FPRIME_BRIDGE_WINDOWS_TEST "Build the native Windows CCSDS bridge test" ON)
 set(FPRIME_BRIDGE_TEST_DICTIONARY "" CACHE FILEPATH "Generated F Prime topology dictionary for the native bridge test")
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(fprime_dictionary_test
+        test/DictionaryTest.cpp
+        engine/src/FprimeDictionary.cpp)
+    target_include_directories(fprime_dictionary_test PRIVATE engine/include)
+    target_link_libraries(fprime_dictionary_test PRIVATE
+        DARTWIC::EngineProtocol nlohmann_json::nlohmann_json)
+    add_test(NAME fprime_dictionary
+        COMMAND fprime_dictionary_test
+            "${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures/command-types.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures/custom-booleans.json")
+endif()
 if(WIN32 AND FPRIME_BRIDGE_WINDOWS_TEST)
     enable_testing()
     add_executable(fprime_bridge_windows_test

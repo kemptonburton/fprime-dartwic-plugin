@@ -102,6 +102,9 @@ struct Dictionary::Impl {
     std::unordered_map<std::uint64_t, EventEntry> events;
     std::unordered_map<std::string, Json> commands;
     Json sizeType = {{"name", "U16"}, {"kind", "integer"}, {"size", 16}, {"signed", false}};
+    // Standard F Prime defaults for dictionaries without these constants.
+    std::uint8_t serializedTrue = 0xFF;
+    std::uint8_t serializedFalse = 0x00;
 
     Json resolve(const Json& descriptor) const {
         const std::string name = descriptor.value("name", std::string{});
@@ -168,8 +171,8 @@ struct Dictionary::Impl {
             }
             encode(type.at("representationType"), representation, out, maximum, depth+1); return;
         }
-        if (kind == "boolean" || name == "bool") {
-            integer(std::get<bool>(value.storage()) ? 1 : 0, type.value("size", 8)/8); return;
+        if (kind == "boolean" || kind == "bool" || name == "bool") {
+            integer(std::get<bool>(value.storage()) ? serializedTrue : serializedFalse, 1); return;
         }
         if (kind == "integer" || (!name.empty() && (name[0] == 'I' || name[0] == 'U') && isPrimitive(name))) {
             const auto bytes = bitSize(type);
@@ -243,9 +246,12 @@ struct Dictionary::Impl {
         const std::string name = type.value("name", std::string{});
         const std::string kind = type.value("kind", std::string{});
 
-        if (name == "bool" || kind == "boolean") {
+        if (name == "bool" || kind == "boolean" || kind == "bool") {
+            const auto raw = cursor.unsignedInteger(1);
+            if (raw != serializedTrue && raw != serializedFalse)
+                throw std::runtime_error("invalid serialized F Prime boolean");
             numeric = true;
-            return Value{cursor.unsignedInteger(type.value("size", 8) / 8) != 0};
+            return Value{raw == serializedTrue};
         }
         if (kind == "integer" || name == "I8" || name == "I16" || name == "I32" || name == "I64" ||
             name == "U8" || name == "U16" || name == "U32" || name == "U64") {
@@ -352,6 +358,17 @@ bool Dictionary::load(const std::string& path, std::string& error) {
         }
         Impl next;
         stream >> next.root;
+        for (const auto& constant : next.root.value("constants", Json::array())) {
+            const auto name = constant.value("qualifiedName", std::string{});
+            if (name != "FW_SERIALIZE_TRUE_VALUE" && name != "FW_SERIALIZE_FALSE_VALUE") continue;
+            const auto& value = constant.at("value");
+            if (!value.is_number_integer() || value < 0 || value > 255)
+                throw std::runtime_error("dictionary boolean constant must be a byte");
+            auto& target = name == "FW_SERIALIZE_TRUE_VALUE" ? next.serializedTrue : next.serializedFalse;
+            target = value.get<std::uint8_t>();
+        }
+        if (next.serializedTrue == next.serializedFalse)
+            throw std::runtime_error("dictionary boolean constants must be distinct");
         for (const auto& definition : next.root.at("typeDefinitions")) {
             const std::string name = definition.at("qualifiedName").get<std::string>();
             next.definitions.emplace(name, definition);

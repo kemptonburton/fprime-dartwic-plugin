@@ -1,0 +1,28 @@
+{
+  "typeDefinitions": [
+    {"qualifiedName": "Test.Enabled", "kind": "alias", "underlyingType": {"name": "bool", "kind": "bool", "size": 8}},
+    {"qualifiedName": "Test.Flags", "kind": "array", "size": 2, "elementType": {"name": "Test.Enabled"}},
+    {"qualifiedName": "Test.Options", "kind": "struct", "members": {
+      "enabled": {"index": 0, "type": {"name": "Test.Enabled"}},
+      "flags": {"index": 1, "type": {"name": "Test.Flags"}}
+    }}
+  ],
+  "commands": [
+    {"name": "Test.DEBUG_DRAW", "opcode": 268476423, "formalParams": [
+      {"name": "enabled", "type": {"name": "bool", "kind": "bool", "size": 8}},
+      {"name": "axisLengthM", "type": {"name": "F32", "kind": "float", "size": 32}}
+    ]},
+    {"name": "Test.OPTIONS", "opcode": 2, "formalParams": [
+      {"name": "options", "type": {"name": "Test.Options"}}
+    ]}
+  ],
+  "telemetryChannels": [
+    {"name": "Test.Enabled", "id": 1, "type": {"name": "bool", "kind": "bool", "size": 8}},
+    {"name": "Test.AliasEnabled", "id": 2, "type": {"name": "Test.Enabled"}}
+  ],
+  "events": [
+    {"name": "Test.EnabledChanged", "id": 1, "formalParams": [
+      {"name": "enabled", "type": {"name": "bool", "kind": "bool", "size": 8}}
+    ]}
+  ]
+}
