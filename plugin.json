@@ -3,9 +3,9 @@
   "name": "F Prime Bridge",
   "description": "Standard F Prime CCSDS ground link as a TEMPEST peer.",
   "author": "DARTWIC",
-  "version": "2.0.0-beta.2",
-  "minEngineVersion": "2.0.0-beta.1",
-  "minInterfaceVersion": "1.0.0-pre_release",
+  "version": "2.0.0",
+  "minEngineVersion": "2.0.0",
+  "minInterfaceVersion": "2.0.0",
   "contains_engine_plugin": true,
   "contains_interface_plugin": false
 }

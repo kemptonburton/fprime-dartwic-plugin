@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(DARTWICEngineProtocol VERSION 1.0.0 LANGUAGES CXX)
+project(DARTWICEngineProtocol VERSION 2.0.0 LANGUAGES CXX)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 if(NOT TARGET TEMPEST::Messaging)

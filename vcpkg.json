@@ -1,5 +1,8 @@
 {
   "name": "fprime-dartwic-plugin",
-  "version-string": "2.0.0-beta.2",
-  "dependencies": ["nlohmann-json", "cppzmq"]
+  "version-string": "2.0.0",
+  "dependencies": [
+    "nlohmann-json",
+    "cppzmq"
+  ]
 }
