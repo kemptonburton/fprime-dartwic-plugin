@@ -1,4 +1,14 @@
-# F´ CCSDS bridge for DARTWIC 2.0.0-beta.1
+# F Prime Bridge 2.0.0-beta.2
+
+- Refreshed the bundled Engine SDK, including scoped settings and workspace asset APIs.
+- Bundled version-locked Messaging, Peer, and Engine Protocol sources. Source builds no longer need a private DARTWIC checkout.
+- Published Windows x64 Release and Debug packages with matching manifests.
+- Verified source locks and the synthetic Windows CCSDS bridge test. This is not a hardware or flight-deployment acceptance test.
+
+This SDK refresh targets the current DARTWIC 2.0 development host and its
+`tempest.engine` protocol binding.
+
+## 2.0.0-beta.1
 
 First public source and binary release of the F´ CCSDS TEMPEST peer.
 

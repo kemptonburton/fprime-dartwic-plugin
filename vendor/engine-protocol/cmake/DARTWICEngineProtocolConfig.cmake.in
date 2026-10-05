@@ -1,0 +1,4 @@
+@PACKAGE_INIT@
+include(CMakeFindDependencyMacro)
+find_dependency(TEMPESTMessaging CONFIG)
+include("${CMAKE_CURRENT_LIST_DIR}/DARTWICEngineProtocolTargets.cmake")

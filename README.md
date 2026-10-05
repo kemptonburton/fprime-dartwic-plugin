@@ -53,17 +53,14 @@ A successful response with `status: "sent"` means the TC frame was written to th
 ## Build and package from a clone
 
 Windows x64 builds use Visual Studio 2022 with ClangCL, CMake, Node.js, and
-vcpkg. The package scripts use `VCPKG_ROOT` if set, or the `vcpkg` directory in
-the DARTWIC checkout. The bundled `engine/include/sdk` headers are a snapshot
-of the public DARTWIC example plugin SDK; `npm run verify` checks their hash.
+vcpkg. Set `VCPKG_ROOT` to a vcpkg checkout, or initialize a local `vcpkg`
+directory. The bundled `engine/include/sdk` headers and `vendor/` peer libraries
+are versioned snapshots; `npm run verify` checks their hashes.
 
-The current native build also requires a **compatible DARTWIC source checkout**
-for the `TEMPEST::Peer` and `DARTWIC::EngineProtocol` libraries. Those libraries
-are not supplied as standalone binary dependencies by the public example plugin.
-Set `DARTWIC_SOURCE_ROOT` to that checkout, or place this repository beside a
-directory named `DARTWIC`. This is a build dependency only. The packaged plugin
-communicates with F´ over TCP and requires no F´ source or shared filesystem at
-runtime.
+The native build is standalone. `TEMPEST::Messaging`, `TEMPEST::Peer`, and
+`DARTWIC::EngineProtocol` sources are included under `vendor/`; no private
+DARTWIC checkout is needed. The packaged plugin communicates with F´ over TCP
+and requires no F´ source or shared filesystem at runtime.
 
 If vcpkg dependencies are already installed in another DARTWIC build, set
 `DARTWIC_VCPKG_INSTALLED_DIR` to that build's `vcpkg_installed` directory to

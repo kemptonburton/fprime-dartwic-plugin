@@ -20,7 +20,8 @@ public:
         const std::string& source, const std::string& location,
         const std::string& role, const std::string& required_action = {},
         const std::string& operation = {},
-        nlohmann::json operation_payload = nlohmann::json::object()) {
+        nlohmann::json operation_payload = nlohmann::json::object(),
+        nlohmann::json change = nlohmann::json::object()) {
         if (std::find(requested_.begin(), requested_.end(), channel) == requested_.end()) return;
         auto reference = nlohmann::json{{"channel", channel}, {"kind", kind},
             {"source", source}, {"location", location}, {"role", role},
@@ -30,16 +31,20 @@ public:
             reference["operation"] = operation;
             reference["operation_payload"] = std::move(operation_payload);
         }
+        if (!change.empty()) reference["change"] = std::move(change);
         references_.push_back(std::move(reference));
     }
 
     // A current resource owns or publishes this channel. The callback should
     // report only resources that still exist, including configured offline peers.
     void addOwner(const std::string& channel, const std::string& kind,
-        const std::string& source, const std::string& role) {
+        const std::string& source, const std::string& role,
+        nlohmann::json change = nlohmann::json::object()) {
         if (std::find(requested_.begin(), requested_.end(), channel) == requested_.end()) return;
-        owners_.push_back({{"channel", channel}, {"kind", kind},
-            {"source", source}, {"role", role}});
+        auto owner = nlohmann::json{{"channel", channel}, {"kind", kind},
+            {"source", source}, {"role", role}};
+        if (!change.empty()) owner["change"] = std::move(change);
+        owners_.push_back(std::move(owner));
     }
 
     // Recursively checks strings and channel-named JSON fields. Plain strings
@@ -54,15 +59,22 @@ public:
         error_ = std::move(reason);
     }
 
+    // Absence of addOwner is authoritative only for these resource inventories.
+    // Report every owned channel requested by this audit before marking complete.
+    void completeOwnership(const std::string& kind, const std::string& source) {
+        ownership_coverage_.push_back({{"kind", kind}, {"source", source}});
+    }
+
     nlohmann::json report() const {
         return {{"complete", complete_}, {"references", references_},
-            {"owners", owners_}, {"error", error_}};
+            {"owners", owners_}, {"ownership_coverage", ownership_coverage_}, {"error", error_}};
     }
 
 private:
     std::vector<std::string> requested_;
     nlohmann::json references_ = nlohmann::json::array();
     nlohmann::json owners_ = nlohmann::json::array();
+    nlohmann::json ownership_coverage_ = nlohmann::json::array();
     bool complete_ = true;
     std::string error_;
 

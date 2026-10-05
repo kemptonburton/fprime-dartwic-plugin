@@ -5,21 +5,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(DARTWIC_SOURCE_ROOT "" CACHE PATH "DARTWIC source checkout containing TEMPEST and Engine Protocol")
-if(NOT DARTWIC_SOURCE_ROOT AND DEFINED ENV{DARTWIC_SOURCE_ROOT})
-    set(DARTWIC_SOURCE_ROOT "$ENV{DARTWIC_SOURCE_ROOT}")
-endif()
-if(NOT DARTWIC_SOURCE_ROOT AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../DARTWIC/tempest/peer/CMakeLists.txt")
-    get_filename_component(DARTWIC_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../DARTWIC" ABSOLUTE)
-endif()
-if(NOT EXISTS "${DARTWIC_SOURCE_ROOT}/tempest/peer/CMakeLists.txt"
-    OR NOT EXISTS "${DARTWIC_SOURCE_ROOT}/sdk/dartwic-engine-protocol/CMakeLists.txt")
-    message(FATAL_ERROR
-        "Set DARTWIC_SOURCE_ROOT to a compatible DARTWIC source checkout. "
-        "The public example plugin does not yet provide standalone TEMPEST::Peer "
-        "and DARTWIC::EngineProtocol libraries for this bridge.")
-endif()
-
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/plugin.json" PLUGIN_MANIFEST_JSON)
 string(JSON ENGINE_PLUGIN_ID GET "${PLUGIN_MANIFEST_JSON}" id)
 string(JSON CONTAINS_ENGINE_PLUGIN GET "${PLUGIN_MANIFEST_JSON}" contains_engine_plugin)
@@ -27,8 +12,9 @@ if(NOT CONTAINS_ENGINE_PLUGIN)
     message(FATAL_ERROR "plugin.json must declare contains_engine_plugin=true")
 endif()
 
-add_subdirectory("${DARTWIC_SOURCE_ROOT}/tempest/peer" "${CMAKE_CURRENT_BINARY_DIR}/tempest-peer")
-add_subdirectory("${DARTWIC_SOURCE_ROOT}/sdk/dartwic-engine-protocol" "${CMAKE_CURRENT_BINARY_DIR}/engine-protocol")
+add_subdirectory(vendor/messaging)
+add_subdirectory(vendor/peer)
+add_subdirectory(vendor/engine-protocol)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 add_library(fprime_bridge SHARED
@@ -45,6 +31,10 @@ target_link_libraries(fprime_bridge PRIVATE
     TEMPEST::Peer DARTWIC::EngineProtocol nlohmann_json::nlohmann_json)
 if(WIN32)
     target_link_libraries(fprime_bridge PRIVATE ws2_32)
+    add_custom_command(TARGET fprime_bridge POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:fprime_bridge> $<TARGET_FILE_DIR:fprime_bridge>
+        COMMAND_EXPAND_LISTS)
 endif()
 
 set(ENGINE_PLUGIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/plugin/$<IF:$<CONFIG:Debug>,engine-debug,engine>/${ENGINE_PLUGIN_ID}")

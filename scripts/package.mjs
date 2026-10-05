@@ -27,16 +27,12 @@ async function exists(file) {
 async function main() {
     await verify();
     if (process.platform !== "win32") throw new Error("This release script currently builds Windows x64 packages only.");
-    const sourceRoot = path.resolve(process.env.DARTWIC_SOURCE_ROOT || path.join(root, "..", "DARTWIC"));
-    const vcpkgRoot = path.resolve(process.env.VCPKG_ROOT || path.join(sourceRoot, "vcpkg"));
-    if (!await exists(path.join(sourceRoot, "tempest", "peer", "CMakeLists.txt"))) {
-        throw new Error("Set DARTWIC_SOURCE_ROOT to a compatible DARTWIC source checkout.");
-    }
+    const vcpkgRoot = path.resolve(process.env.VCPKG_ROOT || path.join(root, "vcpkg"));
     if (!await exists(path.join(vcpkgRoot, "scripts", "buildsystems", "vcpkg.cmake"))) {
         throw new Error("Set VCPKG_ROOT to a vcpkg checkout.");
     }
-    const env = {...process.env, DARTWIC_SOURCE_ROOT: sourceRoot, VCPKG_ROOT: vcpkgRoot};
-    const configureArgs = ["--preset", preset, `-DDARTWIC_SOURCE_ROOT=${sourceRoot}`];
+    const env = {...process.env, VCPKG_ROOT: vcpkgRoot};
+    const configureArgs = ["--preset", preset];
     if (process.env.DARTWIC_VCPKG_INSTALLED_DIR) {
         const installed = path.resolve(process.env.DARTWIC_VCPKG_INSTALLED_DIR);
         if (!await exists(path.join(installed, "x64-windows", "share", "nlohmann_json"))) {

@@ -37,6 +37,8 @@ export async function verify() {
     }
     const actual = await hashDirectory(path.join(root, "engine", "include", "sdk"));
     if (actual !== lock.engineSdkSha256) throw new Error("Bundled Engine SDK differs from sdk-lock.json.");
+    if (await hashDirectory(path.join(root, "vendor")) !== lock.peerDependenciesSha256)
+        throw new Error("Bundled TEMPEST/Engine Protocol sources differ from sdk-lock.json.");
     for (const relative of ["CMakeLists.txt", "engine/src/FprimeBridgePlugin.cpp",
         "engine/src/FprimeTransport.cpp", "engine/src/FprimeDictionary.cpp",
         "test/WindowsBridgeTest.cpp"]) {
@@ -46,5 +48,12 @@ export async function verify() {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    if (process.argv.includes("--write-lock")) {
+        const lock = {
+            engineSdkSha256: await hashDirectory(path.join(root, "engine/include/sdk")),
+            peerDependenciesSha256: await hashDirectory(path.join(root, "vendor")),
+        };
+        await fs.writeFile(path.join(root, "sdk-lock.json"), JSON.stringify(lock, null, 2) + "\n");
+    }
     await verify();
 }
