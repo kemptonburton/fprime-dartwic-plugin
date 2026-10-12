@@ -1,6 +1,7 @@
 #pragma once
 #include <tempest/Peer.h>
 #include <optional>
+#include <limits>
 #include <variant>
 #include <vector>
 
@@ -19,6 +20,7 @@ struct ChannelUpsert {
     std::vector<ChannelSample> samples;
     Value::Object channel_data;
     std::string command_origin;
+    std::string automation_operation;
     uint64_t revision = 0;
     std::string source_session_id;
     bool take_manual_control = false;
@@ -95,6 +97,7 @@ struct ArgusEvent {
     uint64_t timestamp = 0;
     std::vector<std::string> channels;
     Value::Object details;
+    double separation_seconds = std::numeric_limits<double>::quiet_NaN();
 };
 /** ARGUS event selection by identity, status, type, owner, time range, limit, and additional filters. */
 struct ArgusQuery {

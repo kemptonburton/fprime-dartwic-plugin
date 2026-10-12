@@ -37,11 +37,18 @@ std::vector<ChannelSample> samples(const Object& o) {
 Object event(const ArgusEvent& e) {
     return {{"event_id",e.event_id},{"type",e.type},{"title",e.title},{"description",e.description},
         {"status",e.status},{"owner_node",e.owner_node},{"timestamp",e.timestamp},
-        {"channels",strings(e.channels)},{"details",e.details}};
+        {"channels",strings(e.channels)},{"details",e.details},{"separation_seconds",e.separation_seconds}};
 }
 ArgusEvent event(const Object& o) {
-    return {text(o,"event_id"),text(o,"type","message"),text(o,"title"),text(o,"description"),
+    ArgusEvent result{text(o,"event_id"),text(o,"type","message"),text(o,"title"),text(o,"description"),
         text(o,"status","new"),text(o,"owner_node"),number(o,"timestamp"),strings(o,"channels"),object(o,"details")};
+    if (const auto* value = find(o,"separation_seconds")) {
+        const auto& storage = value->storage();
+        if (const auto* real = std::get_if<double>(&storage)) result.separation_seconds = *real;
+        else if (const auto* integer = std::get_if<int64_t>(&storage)) result.separation_seconds = static_cast<double>(*integer);
+        else if (const auto* integer = std::get_if<uint64_t>(&storage)) result.separation_seconds = static_cast<double>(*integer);
+    }
+    return result;
 }
 void channelName(const Object& o) {
     if (text(o,"channel").empty()) throw TEMPEST::RemoteError("Channel name is required.","invalid_arguments");
@@ -73,6 +80,7 @@ Object arguments(const EngineRequest& r) {
             if constexpr(std::is_same_v<T,ChannelUpsert>) {
                 o["field"]=v.field; o["value"]=v.value; o["channel_data"]=v.channel_data;
                 o["take_manual_control"]=v.take_manual_control;
+                o["automation_operation"]=v.automation_operation;
                 o["release_manual_override"]=v.release_manual_override;
                 if(v.timestamp) o["timestamp"]=*v.timestamp;
             }
@@ -89,6 +97,7 @@ EngineRequest request(const std::string& name,const Object& o) {
         ChannelUpsert v{text(o,"owner_node"),text(o,"channel"),text(o,"field","value"),value(o,"value")};
         if(find(o,"timestamp")) v.timestamp=number(o,"timestamp");
         v.samples=samples(o); v.channel_data=object(o,"channel_data"); v.command_origin=text(o,"command_origin");
+        v.automation_operation=text(o,"automation_operation");
         v.revision=number(o,"revision"); v.source_session_id=text(o,"source_session_id");
         if(const auto flag=find(o,"take_manual_control")) v.take_manual_control=std::get<bool>(flag->storage());
         if(const auto flag=find(o,"release_manual_override")) v.release_manual_override=std::get<bool>(flag->storage());

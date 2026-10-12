@@ -1,5 +1,6 @@
 #include <dartwic/EngineProtocol.h>
 #include <mutex>
+#include <cmath>
 #include <unordered_map>
 
 namespace DARTWIC {
@@ -219,6 +220,8 @@ void EngineProtocol::Channels::publishTelemetry(ChannelTelemetry t)const{owner_-
 void EngineProtocol::Channels::publishTelemetry(FixedGenerationTelemetry t)const{owner_->impl_->publish(std::move(t));}
 void EngineProtocol::Argus::setHandlers(ArgusHandlers h)const{std::lock_guard lock(owner_->impl_->mutex);owner_->impl_->argus_handlers=std::move(h);}
 void EngineProtocol::Argus::publishTyped(const char* type,ArgusEvent e)const{
+    if (!std::isfinite(e.separation_seconds) || e.separation_seconds < 0.0)
+        throw TEMPEST::Error("ARGUS separation_seconds must be finite and nonnegative.");
     e.type=type;owner_->impl_->prepareEvent(e);
     const auto owner=e.owner_node;
     owner_->impl_->publish(ArgusEventTelemetry{ArgusEventTelemetry::Kind::Created,owner,std::move(e),{}});

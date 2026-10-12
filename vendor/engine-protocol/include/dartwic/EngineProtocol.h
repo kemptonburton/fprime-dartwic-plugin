@@ -16,7 +16,7 @@ inline constexpr const char* ARGUS_DELETE_EVENT_OPERATION = "tempest-peer/argus/
 // functions describe application payloads; they do not serialize wire bytes.
 namespace EngineContract {
 /** DARTWIC application contract version. */
-inline constexpr int version = 1;
+inline constexpr int version = 2;
 /** Map a typed request to its TEMPEST operation name. */
 std::string operation(const EngineRequest& request);
 /** Map a typed request to its argument object. */

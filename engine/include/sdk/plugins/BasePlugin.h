@@ -3,6 +3,7 @@
 
 #include <modules/BaseModule.h>
 #include <nlohmann/json.hpp>
+#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -13,6 +14,7 @@
 #endif
 
 namespace DARTWIC::Plugins {
+    inline constexpr uint32_t ENGINE_PLUGIN_SDK_ABI_VERSION = 5;
     /**
      * Root object implemented by an engine plugin.
      *
