@@ -1,5 +1,4 @@
 #include "FprimeTransport.hpp"
-#include <dartwic/EngineProtocol.h>
 #include <plugins/BasePlugin.h>
 #include <tempest/Peer.h>
 
@@ -22,7 +21,7 @@ public:
                 {"tm_frame_size", 1024}
             },
             .protocol_id = "tempest.engine",
-            .protocol_version = DARTWIC::EngineContract::version,
+            .protocol_version = 1,
             .engine_protocol = true,
             .create = [](const nlohmann::json& config) {
                 return std::make_shared<FprimeTransport>(config);
