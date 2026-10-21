@@ -6,3 +6,4 @@ node_modules/
 test/__pycache__/
 *.pyc
 deployment-settings.json
+/release-manifest.json

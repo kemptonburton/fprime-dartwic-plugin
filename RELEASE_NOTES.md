@@ -1,3 +1,14 @@
+# F Prime Bridge 2.0.0
+
+- Standard F Prime CCSDS TCP ground link as a DARTWIC TEMPEST engine peer.
+- Updated the bundled Engine SDK, Messaging, Peer, and Engine Protocol snapshots and verified source locks for the DARTWIC 2.0.0 baseline.
+- Standalone source builds include the required SDK and peer sources.
+- Requires DARTWIC Engine and Interface 2.0.0 or newer. The peer binds to `tempest.engine` protocol version 1; the bundled TEMPEST compatibility version is 2.
+
+Windows x64 packages: `plugin.zip` for Release; `plugin-debug.zip` for Debug with PDB symbols. Use the package matching your engine configuration. `plugin.json` is the installation manifest; `release-manifest.json` records SHA-256 checksums and sizes. Core host packages are released separately.
+
+Verified: source locks, Release and Debug native package builds, dictionary tests, and the synthetic Windows CCSDS bridge test. Linux packages, physical hardware, and a live F Prime flight deployment are outside this verification.
+
 # F Prime Bridge 2.0.0-beta.2
 
 - Refreshed the bundled Engine SDK, including scoped settings and workspace asset APIs.

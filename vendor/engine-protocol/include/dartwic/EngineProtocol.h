@@ -1,5 +1,6 @@
 #pragma once
 #include <dartwic/EngineTypes.h>
+#include <dartwic/InternalVersions.h>
 
 namespace DARTWIC {
 /** Engine operation name for owner-directed ARGUS actions. */
@@ -15,8 +16,8 @@ inline constexpr const char* ARGUS_DELETE_EVENT_OPERATION = "tempest-peer/argus/
 // DARTWIC's operation/topic contract, carried directly by TEMPEST. These
 // functions describe application payloads; they do not serialize wire bytes.
 namespace EngineContract {
-/** DARTWIC application contract version. */
-inline constexpr int version = 2;
+/** TEMPEST compatibility version supplied by the SDK. */
+inline constexpr int version = TEMPEST_COMPATIBILITY_VERSION;
 /** Map a typed request to its TEMPEST operation name. */
 std::string operation(const EngineRequest& request);
 /** Map a typed request to its argument object. */

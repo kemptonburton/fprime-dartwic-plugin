@@ -15,6 +15,7 @@
 #include <vector>
 #include "channel_references.h"
 #include "dcode_prepared_value.h"
+#include "plugins/InternalVersions.h"
 
 namespace TEMPEST { class Transport; class Peer; }
 
@@ -68,7 +69,6 @@ namespace DARTWIC::API {
         UNITS,
         STALE_TIMEOUT,
         RECORD_MODE,
-        DATA_FRAME,
         CONTROL_POLICY,
         CONTROL_OWNER,
         ACTIVE_CONTROLLER,

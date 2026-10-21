@@ -1,4 +1,5 @@
 #include <tempest/Peer.h>
+#include <tempest/InternalVersions.h>
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
@@ -11,7 +12,7 @@ namespace TEMPEST {
 namespace {
 constexpr auto registration = "tempest/register-peer";
 constexpr auto heartbeat = "tempest/heartbeat";
-constexpr int wire_version = 2;
+constexpr int wire_version = COMPATIBILITY_VERSION;
 std::atomic<uint64_t> identities{1};
 std::string identity() {
     return std::to_string(std::chrono::system_clock::now().time_since_epoch().count())

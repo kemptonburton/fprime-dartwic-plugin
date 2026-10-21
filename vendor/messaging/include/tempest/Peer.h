@@ -1,4 +1,5 @@
 #pragma once
+#include <tempest/InternalVersions.h>
 
 #include <tempest/Transport.h>
 #include <chrono>
