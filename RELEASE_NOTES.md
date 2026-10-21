@@ -1,33 +1,6 @@
-# F Prime Bridge 2.0.0
+# F Prime Bridge 2.0.1
 
-- Standard F Prime CCSDS TCP ground link as a DARTWIC TEMPEST engine peer.
-- Updated the bundled Engine SDK, Messaging, Peer, and Engine Protocol snapshots and verified source locks for the DARTWIC 2.0.0 baseline.
-- Standalone source builds include the required SDK and peer sources.
-- Requires DARTWIC Engine and Interface 2.0.0 or newer. The peer binds to `tempest.engine` protocol version 1; the bundled TEMPEST compatibility version is 2.
-
-Windows x64 packages: `plugin.zip` for Release; `plugin-debug.zip` for Debug with PDB symbols. Use the package matching your engine configuration. `plugin.json` is the installation manifest; `release-manifest.json` records SHA-256 checksums and sizes. Core host packages are released separately.
-
-Verified: source locks, Release and Debug native package builds, dictionary tests, and the synthetic Windows CCSDS bridge test. Linux packages, physical hardware, and a live F Prime flight deployment are outside this verification.
-
-# F Prime Bridge 2.0.0-beta.2
-
-- Refreshed the bundled Engine SDK, including scoped settings and workspace asset APIs.
-- Bundled version-locked Messaging, Peer, and Engine Protocol sources. Source builds no longer need a private DARTWIC checkout.
-- Published Windows x64 Release and Debug packages with matching manifests.
-- Verified source locks and the synthetic Windows CCSDS bridge test. This is not a hardware or flight-deployment acceptance test.
-
-This SDK refresh targets the current DARTWIC 2.0 development host and its
-`tempest.engine` protocol binding.
-
-## 2.0.0-beta.1
-
-First public source and binary release of the F´ CCSDS TEMPEST peer.
-
-- `plugin.zip`: Windows x64 Release engine plugin.
-- `plugin-debug.zip`: Windows x64 Debug engine plugin with PDB symbols.
-
-The plugin reads a deployment topology dictionary from the DARTWIC engine host and communicates with F´ over a CCSDS TCP link. The dictionary path and link parameters are configured in the TEMPEST peer settings. It does not discover commands from the F´ process over TCP; the command catalog comes from the loaded dictionary.
-
-**Engine compatibility:** this plugin binds to `tempest.engine` protocol version 1. An older DARTWIC engine that still requires `dartwic.engine` rejects it with `Peer definition has an invalid protocol binding.` Use a compatible engine build. No Hadron FSW source changes are required.
-
-Building from this source currently requires the DARTWIC `TEMPEST::Peer` and `DARTWIC::EngineProtocol` sources, since the public example plugin SDK does not yet distribute them as standalone binaries. See README.md for build and test commands.
+- Uses explicit platform ZIP filenames; generic plugin.zip releases are no longer supported.
+- Windows x64 Release and Debug binaries, runtime DLLs, and PDB symbols ship together in plugin-win32-x64.zip. The Engine chooses its configuration.
+- Bundled SDK locks, package manifests, and release checksums are verified. Requires DARTWIC Engine and Interface 2.0.0 or newer.
+- README documents exact uploaded assets, manifest, archive structure, and build commands.

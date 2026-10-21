@@ -7,3 +7,5 @@ test/__pycache__/
 *.pyc
 deployment-settings.json
 /release-manifest.json
+
+/plugin-*.zip

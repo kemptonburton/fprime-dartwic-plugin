@@ -2,9 +2,8 @@
 
 This is the source repository for the DARTWIC `fprime_bridge` engine plugin. The
 downloadable Windows x64 packages are on the [GitHub releases page](https://github.com/kemptonburton/fprime-dartwic-plugin/releases).
-The standard package is `plugin.zip`; the debug package is `plugin-debug.zip`
-and includes the plugin's PDB symbols. Install the package matching the engine
-build you run. Keep the manifest ID `fprime_bridge` when upgrading an existing
+The Windows x64 package is `plugin-win32-x64.zip`; it contains both Release
+and Debug engine variants, including PDB symbols. The Engine selects its build variant. Keep the manifest ID `fprime_bridge` when upgrading an existing
 connection.
 
 `fprime_bridge.fprime_ccsds` is the **F Prime ComCcsds** TEMPEST peer for the DARTWIC engine. It connects a running F´ deployment to DARTWIC over TCP using F´ CCSDS telemetry (TM) and telecommand (TC) frames. The F´ deployment does not link against TEMPEST or DARTWIC code. The bridge runs in the DARTWIC engine and implements `TEMPEST::Transport`.
@@ -58,7 +57,7 @@ constants instead, including deployment overrides.
 
 ## Build and package from a clone
 
-Version 2.0.0 requires DARTWIC Engine and Interface 2.0.0 or newer. Core
+Version 2.0.1 requires DARTWIC Engine and Interface 2.0.0 or newer. Core
 2.0.0 packages will be published separately from this plugin release.
 
 Windows x64 builds use Visual Studio 2022 with ClangCL, CMake, Node.js, and
@@ -80,14 +79,10 @@ From the repository root in PowerShell:
 ```powershell
 npm run verify
 npm run package
-npm run package-debug
 ```
 
 The build outputs are `plugin/engine/fprime_bridge` for Release and
-`plugin/engine-debug/fprime_bridge` for Debug. Each package script creates its
-matching ZIP at the repository root. The package scripts configure CMake and
-build the DLL, so manually building first is unnecessary. The debug ZIP includes
-`fprime_bridge.pdb`.
+`plugin/engine-debug/fprime_bridge` for Debug. The package command creates one `plugin-win32-x64.zip` containing both directories and `fprime_bridge.pdb` under the Debug directory. It configures CMake and builds both configurations; neither is optional.
 
 For the native Windows bridge test, supply a generated topology dictionary:
 
@@ -117,3 +112,46 @@ from a compatible revision before installing this release. The `minEngineVersion
 value in the manifest alone cannot detect that protocol change.
 
 `test/windows_ccsds_fixture.py` is a wire-level test fixture. It is **not** the Hadron F´ SITL deployment. An end-to-end test of the actual deployment requires running the F´ SITL on a supported platform such as Linux or WSL and connecting its CCSDS TCP client to this peer. The bridge itself builds on Windows; the Hadron F´ checkout does not currently supply a native Windows platform/`Drv.TcpClient` implementation.
+
+## GitHub release assets and layout
+
+Release `2.0.1` uses tag `v2.0.1` and these exact uploaded assets:
+
+```text
+plugin.json
+  plugin-win32-x64.zip
+release-manifest.json         # generated SHA-256 checksums
+```
+
+Generic `plugin.zip` and separate `plugin-debug.zip` assets are not supported. The root `plugin.json` must also exist in the tagged source. Upload this same manifest directly to the release:
+
+```json
+{
+  "id": "fprime_bridge",
+  "name": "F Prime Bridge",
+  "description": "Standard F Prime CCSDS ground link as a TEMPEST peer.",
+  "author": "DARTWIC",
+  "version": "2.0.1",
+  "minEngineVersion": "2.0.0",
+  "minInterfaceVersion": "2.0.0",
+  "contains_engine_plugin": true,
+  "contains_interface_plugin": false
+}
+```
+
+Each ZIP has this exact layout:
+
+```text
+plugin/
+  engine/fprime_bridge/plugin.json
+  engine/fprime_bridge/bin/fprime_bridge.dll
+  engine/fprime_bridge/bin/libzmq-mt-4_3_5.dll
+  engine-debug/fprime_bridge/plugin.json
+  engine-debug/fprime_bridge/bin/fprime_bridge.dll
+  engine-debug/fprime_bridge/bin/fprime_bridge.pdb
+  engine-debug/fprime_bridge/bin/libzmq-mt-gd-4_3_5.dll
+```
+
+Run `npm run package` on Windows x64 with the prerequisites above. It builds both Release and Debug, validates manifests and native architecture, requires Debug PDB symbols, and produces one ZIP. `package-debug` is an alias for the complete package. The Engine automatically selects its build configuration. This repository currently publishes Windows x64 only; do not rename this ZIP to claim Linux support.
+
+The plugin version, root manifest, and every manifest inside the ZIP must match. Publish a new version for changed assets. DARTWIC chooses native downloads by the Engine OS, independently of the Interface OS, and rejects missing platform packages. The full external-developer contract is in [Packaging and Installation](https://github.com/kemptonburton/dartwic-example-plugin#github-release-contract).
