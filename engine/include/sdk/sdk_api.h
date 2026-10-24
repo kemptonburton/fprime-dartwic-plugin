@@ -24,10 +24,10 @@ namespace DARTWIC::Modules {
 }
 
 namespace DARTWIC::API {
-    /** Portable shared-asset path below workspace/global_data. @dartwic-reference @category Workspace Assets */
+    /** Portable assets/namespace/filename reference below the workspace root. Validated single segments with a filename extension; throws invalid_argument on unsafe names. No I/O. @dartwic-reference @category Workspace Assets */
     inline std::string workspaceAssetPath(const std::string& asset_namespace, const std::string& filename) {
         const auto safe_segment = [](const std::string& value) {
-            if (value.empty() || value.find("..") != std::string::npos) return false;
+            if (value.empty() || value.find("..") != std::string::npos || value.back() == '.') return false;
             const auto alphanumeric = [](char c) {return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');};
             if (!alphanumeric(value.front())) return false;
             for (char c : value) if (!alphanumeric(c) && c != '_' && c != '-' && c != '.') return false;
@@ -36,6 +36,16 @@ namespace DARTWIC::API {
         if (!safe_segment(asset_namespace) || !safe_segment(filename) || filename.find('.') == std::string::npos)
             throw std::invalid_argument("Asset namespace and filename must be safe path segments, with a file extension.");
         return "assets/" + asset_namespace + "/" + filename;
+    }
+    /** Portable assets/plugins/id/relative reference for authored shared plugin files. Bind the manifest's plugin ID. Validates segments and requires a file extension. No I/O or isolation from generic storage APIs. @dartwic-reference @category Workspace Assets */
+    inline std::string pluginWorkspaceAssetPath(const std::string& plugin_id, const std::string& relative) {
+        workspaceAssetPath(plugin_id, "validation.json");
+        const std::filesystem::path path(relative);
+        if (path.is_absolute() || path.has_root_name() || relative.empty() || relative.find('\\') != std::string::npos)
+            throw std::invalid_argument("Plugin asset files must be relative paths.");
+        for (const auto& part : path) workspaceAssetPath(part.string(), "validation.json");
+        workspaceAssetPath(plugin_id, path.filename().string());
+        return "assets/plugins/" + plugin_id + "/" + relative;
     }
     /** TEMPEST transport interface used by custom engine connections. */
     using Transport = TEMPEST::Transport;
@@ -849,8 +859,8 @@ namespace DARTWIC::API {
          * @returns Text content of the asset.
          */
         std::string readWorkspaceAsset(const std::string& node, const std::string& asset_namespace, const std::string& filename) {
-            return callTempest(node, "dartwic/get-file", {{"rootDir", "global_data_directory"},
-                {"filePath", workspaceAssetPath(asset_namespace, filename)}}).at("content").get<std::string>();
+            return callTempest(node, "dartwic/get-file", {{"rootDir", "workspace_assets_directory"},
+                {"filePath", workspaceAssetPath(asset_namespace, filename).substr(7)}}).at("content").get<std::string>();
         }
 
         /** Saves a shared text/JSON asset and returns its portable reference. Keep binary data in a base64 package.
@@ -865,8 +875,50 @@ namespace DARTWIC::API {
         std::string saveWorkspaceAsset(const std::string& node, const std::string& asset_namespace,
                                       const std::string& filename, const std::string& content) {
             const auto path = workspaceAssetPath(asset_namespace, filename);
-            callTempest(node, "dartwic/save-file", {{"rootDir", "global_data_directory"}, {"path", path}, {"content", content}});
+            callTempest(node, "dartwic/save-file", {{"rootDir", "workspace_assets_directory"}, {"path", path.substr(7)}, {"content", content}});
             return path;
+        }
+
+        /** Synchronously read authored UTF-8 data from workspace/assets/plugins/id/relative.
+         * Missing files, authorization and transport failures throw. May block; no real-time bound.
+         * @dartwic-reference
+         * @category Workspace Assets
+         * @param node Target Engine node name, local or connected peer.
+         * @param plugin_id Manifest plugin ID; safe single path segment.
+         * @param relative Validated relative file with an extension; subdirectories are allowed.
+         * @returns UTF-8 file content after the remote read completes.
+         */
+        std::string readPluginWorkspaceAsset(const std::string& node, const std::string& plugin_id, const std::string& relative) {
+            return callTempest(node, "dartwic/get-file", {{"rootDir", "workspace_assets_directory"}, {"filePath", pluginWorkspaceAssetPath(plugin_id, relative).substr(7)}}).at("content").get<std::string>();
+        }
+
+        /** Synchronously save shared authored plugin data. Requires administrator authority.
+         * Project settings and local secrets/runtime retain their scopes. May block and throw.
+         * @dartwic-reference
+         * @category Workspace Assets
+         * @param node Target Engine node name, local or connected peer.
+         * @param plugin_id Manifest plugin ID; safe single path segment.
+         * @param relative Validated relative file with an extension; subdirectories are allowed.
+         * @param content UTF-8 text or serialized JSON; binary content needs a text package.
+         * @returns Portable assets/plugins/id/relative reference after the Engine write completes.
+         */
+        std::string savePluginWorkspaceAsset(const std::string& node, const std::string& plugin_id, const std::string& relative, const std::string& content) {
+            const auto path = pluginWorkspaceAssetPath(plugin_id, relative);
+            callTempest(node, "dartwic/save-file", {{"rootDir", "workspace_assets_directory"}, {"path", path.substr(7)}, {"content", content}});
+            return path;
+        }
+
+        /** Resolve a local bundled Engine plugin file under installation/plugins/id/assets.
+         * Plugin updates replace it; save authored changes in workspace assets. Validates paths and may throw.
+         * @dartwic-reference
+         * @category Workspace Assets
+         * @param plugin_id Manifest plugin ID; safe single path segment.
+         * @param relative Validated relative file with an extension; subdirectories are allowed.
+         * @returns Local absolute path. No content read or existence guarantee is implied.
+         */
+        std::filesystem::path pluginAssetPath(const std::string& plugin_id, const std::string& relative) {
+            pluginWorkspaceAssetPath(plugin_id, relative);
+            return installationPath("plugins/" + plugin_id + "/assets/" + relative);
         }
 
         /** Resolves a local path below a named root.

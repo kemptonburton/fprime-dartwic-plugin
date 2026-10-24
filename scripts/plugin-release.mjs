@@ -31,6 +31,7 @@ export async function verifyPluginOutput(root, platform = getPluginPlatform()) {
   const sides = [ ...(manifest.contains_engine_plugin ? ["engine", "engine-debug"] : []), ...(manifest.contains_interface_plugin ? ["interface"] : []) ];
   for (const side of sides) {
     const output = path.join(root, "plugin", side, manifest.id);
+    if (await fs.stat(path.join(root, "assets")).catch(() => null)) await fs.access(path.join(output, "assets"));
     const copy = JSON.parse(await fs.readFile(path.join(output, "plugin.json"), "utf8"));
     for (const field of ["id", "name", "version", "minEngineVersion", "minInterfaceVersion", "contains_engine_plugin", "contains_interface_plugin"]) {
       if (copy[field] !== manifest[field]) throw new Error(`${side}/plugin.json differs from the root manifest (${field}). Rebuild the package.`);
@@ -62,8 +63,6 @@ export async function packagePluginRelease(root, platforms = [getPluginPlatform(
       await fs.mkdir(path.dirname(target), {recursive: true});
       await fs.cp(path.join(root, "plugin", side, manifest.id), target, {recursive: true});
     }
-    const files = path.join(root, "plugin", "files");
-    if (await fs.stat(files).catch(() => null)) await fs.cp(files, path.join(stage, "plugin", "files"), {recursive: true});
     for (const platform of platforms) {
       const name = `plugin-${platform}.zip`;
       const archive = path.join(root, name);

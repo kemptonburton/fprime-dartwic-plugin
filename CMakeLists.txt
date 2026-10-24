@@ -44,6 +44,8 @@ set_target_properties(fprime_bridge PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${ENGINE_PLUGIN_DIR}/bin"
     PDB_OUTPUT_DIRECTORY "${ENGINE_PLUGIN_DIR}/bin")
 add_custom_target(copy_engine_plugin ALL
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "${ENGINE_PLUGIN_DIR}/assets"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/assets" "${ENGINE_PLUGIN_DIR}/assets"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${ENGINE_PLUGIN_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/plugin.json" "${ENGINE_PLUGIN_DIR}/plugin.json"

@@ -57,8 +57,7 @@ constants instead, including deployment overrides.
 
 ## Build and package from a clone
 
-Version 2.0.1 requires DARTWIC Engine and Interface 2.0.0 or newer. Core
-2.0.0 packages will be published separately from this plugin release.
+Version 2.0.2 requires DARTWIC Engine and Interface 2.0.0 or newer.
 
 Windows x64 builds use Visual Studio 2022 with ClangCL, CMake, Node.js, and
 vcpkg. Set `VCPKG_ROOT` to a vcpkg checkout, or initialize a local `vcpkg`
@@ -115,11 +114,11 @@ value in the manifest alone cannot detect that protocol change.
 
 ## GitHub release assets and layout
 
-Release `2.0.1` uses tag `v2.0.1` and these exact uploaded assets:
+Release `2.0.2` uses tag `v2.0.2` and these exact uploaded assets:
 
 ```text
 plugin.json
-  plugin-win32-x64.zip
+plugin-win32-x64.zip
 release-manifest.json         # generated SHA-256 checksums
 ```
 
@@ -131,7 +130,7 @@ Generic `plugin.zip` and separate `plugin-debug.zip` assets are not supported. T
   "name": "F Prime Bridge",
   "description": "Standard F Prime CCSDS ground link as a TEMPEST peer.",
   "author": "DARTWIC",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "minEngineVersion": "2.0.0",
   "minInterfaceVersion": "2.0.0",
   "contains_engine_plugin": true,
@@ -146,12 +145,24 @@ plugin/
   engine/fprime_bridge/plugin.json
   engine/fprime_bridge/bin/fprime_bridge.dll
   engine/fprime_bridge/bin/libzmq-mt-4_3_5.dll
+  engine/fprime_bridge/assets/README.md
   engine-debug/fprime_bridge/plugin.json
   engine-debug/fprime_bridge/bin/fprime_bridge.dll
   engine-debug/fprime_bridge/bin/fprime_bridge.pdb
   engine-debug/fprime_bridge/bin/libzmq-mt-gd-4_3_5.dll
+  engine-debug/fprime_bridge/assets/README.md
 ```
 
 Run `npm run package` on Windows x64 with the prerequisites above. It builds both Release and Debug, validates manifests and native architecture, requires Debug PDB symbols, and produces one ZIP. `package-debug` is an alias for the complete package. The Engine automatically selects its build configuration. This repository currently publishes Windows x64 only; do not rename this ZIP to claim Linux support.
 
 The plugin version, root manifest, and every manifest inside the ZIP must match. Publish a new version for changed assets. DARTWIC chooses native downloads by the Engine OS, independently of the Interface OS, and rejects missing platform packages. The full external-developer contract is in [Packaging and Installation](https://github.com/kemptonburton/dartwic-example-plugin#github-release-contract).
+
+## Asset ownership
+
+Managed files in this repository's `assets/` ship inside the installed plugin and
+are replaced with it. Keep custom shared files in
+`workspace/assets/plugins/<plugin-id>/` using the SDK helpers. Project settings
+remain project-scoped; local secrets and runtime data belong to Engine instances.
+Workspaces contain authored Git-trackable content; installed Engine and Interface
+directories contain replaceable software and local state. Plugin installation
+does not copy files into workspaces. See `assets/README.md` for the storage rules.
