@@ -18,6 +18,7 @@
 #include "plugins/InternalVersions.h"
 
 namespace TEMPEST { class Transport; class Peer; }
+namespace DARTWIC { class EngineProtocol; }
 
 namespace DARTWIC::Modules {
     class BaseModule;
@@ -383,11 +384,29 @@ namespace DARTWIC::API {
         std::string name;
         uint64_t version = 1;
         nlohmann::json default_config = nlohmann::json::object();
-        std::string protocol_id = "tempest.peer";
-        uint64_t protocol_version = 1;
-        bool engine_protocol = false;
-        std::function<TransportPtr(const nlohmann::json& config)> create;
-        std::function<void(TEMPEST::Peer& peer)> configure;
+        std::string protocol_id = "tempest.engine";
+        uint64_t protocol_version = DARTWIC::Plugins::TEMPEST_COMPATIBILITY_VERSION;
+        bool engine_protocol = true;
+        std::function<TransportPtr(const nlohmann::json&, TEMPEST::Peer&, DARTWIC::EngineProtocol&)> create;
+        std::function<void(TEMPEST::Peer&)> configure;
+        // Host-normalized transport-only registration. Use registerPeerTransport.
+        std::function<TransportPtr(const nlohmann::json&)> create_transport;
+    };
+
+    /** A custom link carrying DARTWIC messages. Engine creates Peer and protocol.
+     * @dartwic-reference
+     * @category TEMPEST
+     */
+    struct PeerTransportDefinition {
+        std::string id;
+        std::string name;
+        uint64_t version = 1;
+        nlohmann::json default_config = nlohmann::json::object();
+        std::string protocol_id = "tempest.engine";
+        uint64_t protocol_version = DARTWIC::Plugins::TEMPEST_COMPATIBILITY_VERSION;
+        bool engine_protocol = true;
+        std::function<TransportPtr(const nlohmann::json&)> create;
+        std::function<void(TEMPEST::Peer&)> configure;
     };
 
     /**
@@ -533,6 +552,24 @@ namespace DARTWIC::API {
          * @returns The plugin-qualified peer ID used by tempest/peers/connect.
          */
         virtual std::string registerPeer(PeerDefinition definition) = 0;
+
+        /** Register a transport carrying DARTWIC messages to another peer. The
+         * Engine supplies identity, registration and application protocol.
+         * @dartwic-reference
+         * @category TEMPEST
+         * @param definition Connection label, default settings, and transport factory.
+         * @returns The plugin-qualified transport identifier.
+         */
+        virtual std::string registerPeerTransport(PeerTransportDefinition definition) {
+            PeerDefinition peer;
+            peer.id=std::move(definition.id);peer.name=std::move(definition.name);
+            peer.version=definition.version;peer.default_config=std::move(definition.default_config);
+            peer.protocol_id=std::move(definition.protocol_id);peer.protocol_version=definition.protocol_version;
+            peer.engine_protocol=definition.engine_protocol;peer.create_transport=std::move(definition.create);
+            peer.configure=std::move(definition.configure);
+            return registerPeer(std::move(peer));
+        }
+
         /**
          * Registers a plugin-local task type and returns its qualified identifier.
          * @dartwic-reference
@@ -687,7 +724,9 @@ namespace DARTWIC::API {
         virtual nlohmann::json callDCodeFunction(const std::string& function_name, const nlohmann::json& payload) = 0;
 
         /**
-         * Commands a channel while using the active task or loop as controller.
+         * Acquires automatic ownership and writes atomically for an eligible local runtime.
+         * Remote targets or callers without runtime authority use an ordinary upsert.
+         * Rejection preserves authority and value; remote submission only confirms queueing.
          * @dartwic-reference
          * @category Channel Authority
          * @param channel Flat channel name.
@@ -695,7 +734,8 @@ namespace DARTWIC::API {
          */
         virtual void commandChannel(const std::string& channel, ChannelValue value) = 0;
         /**
-         * Establishes observe-only authority for the active task or loop, optionally writing its value.
+         * Establishes observe-only authority for an eligible local runtime, optionally writing atomically.
+         * Remote targets or callers without runtime authority upsert a supplied value or do nothing without one.
          * @dartwic-reference
          * @category Channel Authority
          * @param channel Flat channel name.
@@ -703,14 +743,8 @@ namespace DARTWIC::API {
          */
         virtual void setChannel(const std::string& channel, std::optional<ChannelValue> value = std::nullopt) = 0;
         /**
-         * Claims channel authority for the active task or loop controller.
-         * @dartwic-reference
-         * @category Channel Authority
-         * @param channel Flat channel name.
-         */
-        virtual void claimChannel(const std::string& channel) = 0;
-        /**
-         * Releases authority previously claimed by the active controller.
+         * Releases all of the local caller's claims without writing a value.
+         * Other controllers and operator control remain. No eligible caller or remote target is a no-op.
          * @dartwic-reference
          * @category Channel Authority
          * @param channel Flat channel name.
@@ -993,6 +1027,100 @@ namespace DARTWIC::API {
             const nlohmann::json& value, const std::string& project = "") {
             throw std::runtime_error("JSON storage helpers are unavailable in this host.");
         }
+
+        /**
+         * Acquire automatic ownership without writing.
+         * Remote targets and callers without an eligible owner use ordinary upsert when a value is supplied, or no-op without one.
+         * @dartwic-reference
+         * @id SDK_API::commandChannelAuthorityOnly
+         * @category Channel Authority
+         * @param channel Channel name or node-qualified remote channel.
+         */
+        void commandChannel(const std::string& channel) { applyAuthorityByName(0, channel, std::nullopt); }
+        /**
+         * Acquire an automatic override without writing.
+         * Remote targets and callers without an eligible owner use ordinary upsert when a value is supplied, or no-op without one.
+         * @dartwic-reference
+         * @id SDK_API::overrideChannelAuthorityOnly
+         * @category Channel Authority
+         * @param channel Channel name or node-qualified remote channel.
+         */
+        void overrideChannel(const std::string& channel) { applyAuthorityByName(2, channel, std::nullopt); }
+        /**
+         * Acquire an automatic override and write atomically.
+         * Remote targets and callers without an eligible owner use ordinary upsert when a value is supplied, or no-op without one.
+         * @dartwic-reference
+         * @id SDK_API::overrideChannel
+         * @category Channel Authority
+         * @param channel Channel name or node-qualified remote channel.
+         * @param value Requested numeric value, subject to current channel protection.
+         */
+        void overrideChannel(const std::string& channel, ChannelValue value) { applyAuthorityByName(2, channel, std::move(value)); }
+        /**
+         * Write a final value and release all of the caller's claims atomically.
+         * Remote targets and callers without an eligible owner use ordinary upsert when a value is supplied, or no-op without one.
+         * @dartwic-reference
+         * @id SDK_API::freeChannelWithValue
+         * @category Channel Authority
+         * @param channel Channel name or node-qualified remote channel.
+         * @param value Requested numeric value, subject to current channel protection.
+         */
+        void freeChannel(const std::string& channel, ChannelValue value) { applyAuthorityByName(3, channel, std::move(value)); }
+        /**
+         * Apply command authority to a retained local fixed channel, optionally writing a value.
+         * Without an eligible owner, a supplied value is an ordinary write and omission is a no-op.
+         * @dartwic-reference
+         * @id SDK_API::commandChannelFixed
+         * @category Channel Authority
+         * @param channel Retained local handle; stale bindings are rejected.
+         * @param value Optional numeric value; local authority transition and write are atomic.
+         */
+        void commandChannel(const FixedChannelHandle& channel, std::optional<ChannelValue> value = std::nullopt) {
+            applyAuthorityByHandle(0, channel, std::move(value));
+        }
+        /**
+         * Apply set authority to a retained local fixed channel, optionally writing a value.
+         * Without an eligible owner, a supplied value is an ordinary write and omission is a no-op.
+         * @dartwic-reference
+         * @id SDK_API::setChannelFixed
+         * @category Channel Authority
+         * @param channel Retained local handle; stale bindings are rejected.
+         * @param value Optional numeric value; local authority transition and write are atomic.
+         */
+        void setChannel(const FixedChannelHandle& channel, std::optional<ChannelValue> value = std::nullopt) {
+            applyAuthorityByHandle(1, channel, std::move(value));
+        }
+        /**
+         * Apply override authority to a retained local fixed channel, optionally writing a value.
+         * Without an eligible owner, a supplied value is an ordinary write and omission is a no-op.
+         * @dartwic-reference
+         * @id SDK_API::overrideChannelFixed
+         * @category Channel Authority
+         * @param channel Retained local handle; stale bindings are rejected.
+         * @param value Optional numeric value; local authority transition and write are atomic.
+         */
+        void overrideChannel(const FixedChannelHandle& channel, std::optional<ChannelValue> value = std::nullopt) {
+            applyAuthorityByHandle(2, channel, std::move(value));
+        }
+        /**
+         * Apply free authority to a retained local fixed channel, optionally writing a value.
+         * Without an eligible owner, a supplied value is an ordinary write and omission is a no-op.
+         * @dartwic-reference
+         * @id SDK_API::freeChannelFixed
+         * @category Channel Authority
+         * @param channel Retained local handle; stale bindings are rejected.
+         * @param value Optional numeric value; local authority transition and write are atomic.
+         */
+        void freeChannel(const FixedChannelHandle& channel, std::optional<ChannelValue> value = std::nullopt) {
+            applyAuthorityByHandle(3, channel, std::move(value));
+        }
+
+        /** @dartwic-reference-exclude Host authority dispatch; use the four authority operations. */
+        virtual void applyAuthorityByName(uint32_t operation, const std::string& channel,
+            std::optional<ChannelValue> value) = 0;
+        /** @dartwic-reference-exclude Host authority dispatch; use fixed-handle authority operations. */
+        virtual void applyAuthorityByHandle(uint32_t operation, const FixedChannelHandle& channel,
+            std::optional<ChannelValue> value) = 0;
 
     };
 

@@ -14,7 +14,9 @@ endif()
 
 add_subdirectory(vendor/messaging)
 add_subdirectory(vendor/peer)
+if(NOT TARGET DARTWIC::EngineProtocol)
 add_subdirectory(vendor/engine-protocol)
+endif()
 find_package(nlohmann_json CONFIG REQUIRED)
 
 add_library(fprime_bridge SHARED

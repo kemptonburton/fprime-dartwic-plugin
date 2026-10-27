@@ -1,6 +1,7 @@
 #include "FprimeTransport.hpp"
 #include <plugins/BasePlugin.h>
 #include <tempest/Peer.h>
+#include <dartwic/EngineProtocol.h>
 
 namespace FPrimeBridge {
 class Plugin final : public DARTWIC::Plugins::BasePlugin {
@@ -21,10 +22,10 @@ public:
                 {"tm_frame_size", 1024}
             },
             .protocol_id = "tempest.engine",
-            .protocol_version = 1,
+            .protocol_version = DARTWIC::EngineContract::version,
             .engine_protocol = true,
-            .create = [](const nlohmann::json& config) {
-                return std::make_shared<FprimeTransport>(config);
+            .create = [](const nlohmann::json& config,TEMPEST::Peer& peer,DARTWIC::EngineProtocol& protocol) {
+                return std::make_shared<FprimeTransport>(config,peer,protocol);
             }
         });
     }

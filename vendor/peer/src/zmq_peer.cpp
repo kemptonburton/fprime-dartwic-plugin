@@ -1,4 +1,5 @@
 #include <tempest/ZmqPeer.h>
+#include <tempest/detail/TransportAccess.h>
 #include <tempest/JsonValue.h>
 #include <zmq.hpp>
 #include <algorithm>
@@ -42,7 +43,8 @@ struct Slot {
     std::string operations;
     std::string telemetry;
     std::string password;
-    TransportCallbacks callbacks;
+    std::function<void(Message)> receive;
+    std::function<void(bool,std::string)> report_state;
     bool active=false;
     uint64_t last_send_ms=0,last_receive_ms=0,dropped=0,bytes_sent=0,bytes_received=0,replaced=0;
     std::string last_error;
@@ -183,7 +185,7 @@ struct Runtime:std::enable_shared_from_this<Runtime>{
                     if (found != slots.end() && found->second->active && found->second->remote_id == sender) {
                         auto& slot = *found->second;
                         slot.last_receive_ms = nowMs(); slot.bytes_received += incoming.wire.size();
-                        callback = slot.callbacks.on_message;
+                        callback = slot.receive;
                     }
                 }
                 if (callback) callback(std::move(message));
@@ -349,11 +351,11 @@ struct Runtime:std::enable_shared_from_this<Runtime>{
             }
         }catch(...){
             if(!initialized){ready->set_exception(std::current_exception());}
-            std::vector<std::function<void(ConnectionState,std::string)>> callbacks;
+            std::vector<std::function<void(bool,std::string)>> callbacks;
             {std::lock_guard lock(mutex);running=false;for(auto& [_,slot]:slots)
-                if(slot->active&&slot->callbacks.on_state)callbacks.push_back(slot->callbacks.on_state);}
+                if(slot->active&&slot->report_state)callbacks.push_back(slot->report_state);}
             telemetry_cv.notify_all();
-            for(auto& cb:callbacks)cb(ConnectionState::Disconnected,"ZeroMQ peer I/O failed.");
+            for(auto& cb:callbacks)cb(false,"ZeroMQ peer I/O failed.");
         }
     }
 };
@@ -362,11 +364,11 @@ public:
     ZmqConnection(std::shared_ptr<Runtime> runtime,std::shared_ptr<Slot> slot,bool owns=false)
         :runtime_(std::move(runtime)),slot_(std::move(slot)),owns_(owns){}
     ~ZmqConnection()override{stop();}
-    void start(TransportCallbacks callbacks)override{
+    void start()override{
         runtime_->start();
-        std::function<void(ConnectionState,std::string)> state;
-        {std::lock_guard lock(runtime_->mutex);slot_->callbacks=std::move(callbacks);slot_->active=true;state=slot_->callbacks.on_state;}
-        if(state)state(ConnectionState::Connected,{});
+        std::function<void(bool,std::string)> state;
+        {std::lock_guard lock(runtime_->mutex);slot_->receive=detail::TransportAccess::receiver(*this);slot_->report_state=detail::TransportAccess::stateReporter(*this);slot_->active=true;state=slot_->report_state;}
+        if(state)state(true,{});
     }
     void send(Message message)override{runtime_->enqueue(slot_,std::move(message));}
     bool sendSerializedTelemetry(std::string topic,std::string encoding,
@@ -382,7 +384,7 @@ public:
             // connection we deliberately closed. A new connection has a new id.
             if(slot_->active)runtime_->closed_local_ids.insert(slot_->id);
             if(slot_->active && !slot_->remote_id.empty())runtime_->closed_remote_ids[slot_->remote_id]=slot_->id;
-            slot_->active=false;slot_->callbacks={};slot_->reply_routes.clear();runtime_->slots.erase(slot_->id);
+            slot_->active=false;slot_->receive={};slot_->report_state={};slot_->reply_routes.clear();runtime_->slots.erase(slot_->id);
             std::erase_if(runtime_->outbox,[this](const auto& pending){return pending.slot==slot_;});
             const auto topic_prefix=peerTopic(slot_->id);
             std::erase_if(runtime_->telemetry_inbox,[&](const auto& pending){return pending.topic.starts_with(topic_prefix);});}
@@ -503,7 +505,7 @@ bool Runtime::receive(std::string route,const std::string& wire,std::shared_ptr<
             if(slot->reply_routes.size()>=4096)throw QueueFullError("Peer reply routing limit reached.");
             slot->reply_routes[message.request_id]=std::move(route);
         }
-        callback=slot->callbacks.on_message;}
+        callback=slot->receive;}
     if(callback)callback(std::move(message));
     return true;
 }

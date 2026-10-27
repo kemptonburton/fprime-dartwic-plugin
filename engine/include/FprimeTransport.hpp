@@ -4,15 +4,17 @@
 #include <nlohmann/json.hpp>
 #include <memory>
 
+namespace TEMPEST { class Peer; }
+namespace DARTWIC { class EngineProtocol; }
+
 namespace FPrimeBridge {
 
 // Ground-side adapter for an unchanged F Prime ComCcsds/TcpClient link.
 class FprimeTransport final : public TEMPEST::Transport {
 public:
-    explicit FprimeTransport(const nlohmann::json& config);
+    FprimeTransport(const nlohmann::json& config, TEMPEST::Peer& peer, DARTWIC::EngineProtocol& protocol);
     ~FprimeTransport() override;
-    void start(TEMPEST::TransportCallbacks callbacks) override;
-    void send(TEMPEST::Message message) override;
+    void start() override;
     void stop() override;
     std::vector<TEMPEST::TransportPath> diagnostics() const override;
 

@@ -57,7 +57,7 @@ constants instead, including deployment overrides.
 
 ## Build and package from a clone
 
-Version 2.0.2 requires DARTWIC Engine and Interface 2.0.0 or newer.
+Version 2.1.0 requires DARTWIC Engine 2.1.0 and Interface 2.0.0 or newer.
 
 Windows x64 builds use Visual Studio 2022 with ClangCL, CMake, Node.js, and
 vcpkg. Set `VCPKG_ROOT` to a vcpkg checkout, or initialize a local `vcpkg`
@@ -103,12 +103,12 @@ encoding, TCP reconnect, and TEMPEST peer registration.
 
 ### Engine compatibility
 
-This version binds its TEMPEST engine peer to protocol `tempest.engine` version
-1. The DARTWIC engine must accept that protocol binding. An older installed
-engine that still validates `dartwic.engine` rejects this plugin at load with
-`Peer definition has an invalid protocol binding.` Update or rebuild the engine
-from a compatible revision before installing this release. The `minEngineVersion`
-value in the manifest alone cannot detect that protocol change.
+This version uses Engine plugin ABI 6 and TEMPEST compatibility 3. The plugin
+registers its device factory through `registerPeer`; the Engine supplies the
+representative Peer and EngineProtocol. The bridge registers dictionary commands
+on that Peer and publishes channel/event/log telemetry through the supplied
+protocol. Its transport owns CCSDS I/O and reports physical availability through
+`setConnected`; the Engine owns registration and routing.
 
 `test/windows_ccsds_fixture.py` is a wire-level test fixture. It is **not** the Hadron F´ SITL deployment. An end-to-end test of the actual deployment requires running the F´ SITL on a supported platform such as Linux or WSL and connecting its CCSDS TCP client to this peer. The bridge itself builds on Windows; the Hadron F´ checkout does not currently supply a native Windows platform/`Drv.TcpClient` implementation.
 

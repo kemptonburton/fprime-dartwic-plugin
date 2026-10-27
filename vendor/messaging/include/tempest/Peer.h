@@ -99,6 +99,8 @@ public:
     void registerOperation(std::string name, OperationHandler handler);
     /** Descriptors for explicitly registered operations, sorted by name. */
     std::vector<OperationDescriptor> operations() const;
+    /** Remove an operation from dispatch and the advertised catalog. */
+    void unregisterOperation(const std::string& name);
     void setOperationCatalogProvider(std::function<std::vector<OperationDescriptor>()> provider);
     /** Declare a topic that this peer can publish, including topics not yet emitted. */
     void registerTelemetry(TelemetryDescriptor descriptor);

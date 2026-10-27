@@ -1,4 +1,5 @@
 #include <tempest/Peer.h>
+#include <tempest/detail/TransportAccess.h>
 #include <tempest/InternalVersions.h>
 #include <algorithm>
 #include <atomic>
@@ -117,6 +118,7 @@ struct Peer::Impl : std::enable_shared_from_this<Impl> {
         remote_node.clear();
         requests.clear();
         pending.clear();
+        callbacks.clear(); // Retire queued application observations from the previous link epoch.
         notifyStateLocked(link ? ConnectionState::Connecting : value, std::move(reason));
     }
 
@@ -401,6 +403,7 @@ struct Peer::Impl : std::enable_shared_from_this<Impl> {
                 ready = false;
                 pending.clear();
                 requests.clear();
+                callbacks.clear();
                 session = identity();
                 remote_node.clear(); remote_session.clear();
                 notifyStateLocked(ConnectionState::Reconnecting, "Peer heartbeat expired.");
@@ -429,11 +432,10 @@ void Peer::start() {
     p->maintenance_thread = std::thread([p] { p->maintenanceLoop(); });
     std::weak_ptr<Impl> weak = p;
     try {
-        p->transport->start({
-            [weak](Message message) { if (auto p = weak.lock()) p->receive(std::move(message)); },
-            [weak](ConnectionState state, std::string reason) {
-                if (auto p = weak.lock()) p->connectionChanged(state, std::move(reason));
-            }});
+        detail::TransportAccess::bind(*p->transport,
+            [weak](Message message){if(auto p=weak.lock())p->receive(std::move(message));},
+            [weak](bool connected,std::string reason){if(auto p=weak.lock())p->connectionChanged(connected?ConnectionState::Connected:ConnectionState::Disconnected,std::move(reason));});
+        p->transport->start();
     } catch (...) { stop(); throw; }
 }
 void Peer::stop() {
@@ -449,6 +451,7 @@ void Peer::stop() {
     }
     p->cv.notify_all();
     p->transport->stop();
+    detail::TransportAccess::clear(*p->transport);
     finishThread(p->maintenance_thread);
     finishThread(p->request_thread);
     finishThread(p->callback_thread);
@@ -466,6 +469,9 @@ void Peer::registerOperation(OperationDescriptor descriptor, OperationHandler ha
 }
 void Peer::registerOperation(std::string name, OperationHandler handler) {
     registerOperation(OperationDescriptor{.name = std::move(name)}, std::move(handler));
+}
+void Peer::unregisterOperation(const std::string& name) {
+    std::lock_guard lock(impl_->mutex); impl_->operations.erase(name);
 }
 std::vector<OperationDescriptor> Peer::operations() const {
     std::lock_guard lock(impl_->mutex);

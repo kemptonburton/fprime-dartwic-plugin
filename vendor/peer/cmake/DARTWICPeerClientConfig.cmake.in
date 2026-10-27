@@ -1,0 +1,5 @@
+@PACKAGE_INIT@
+include(CMakeFindDependencyMacro)
+find_dependency(TEMPESTPeer 3 CONFIG)
+find_dependency(DARTWICEngineProtocol 3 CONFIG)
+include("${CMAKE_CURRENT_LIST_DIR}/DARTWICPeerClientTargets.cmake")
