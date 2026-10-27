@@ -10,6 +10,12 @@ connection.
 
 The bridge is driven by the **topology dictionary for the deployment currently connected to it**. Its decoder, command encoder, and command catalog use that dictionary at runtime; Hadron command names and IDs are not compiled into those paths. A deployment must provide the compatible CCSDS link described below. A dictionary alone cannot make a deployment with a different transport or frame format interoperable.
 
+## Engine integration
+
+The plugin registers `fprime_bridge.fprime_ccsds` with `registerPeer`. The Engine supplies the representative Peer and EngineProtocol to the transport factory. The transport opens the TCP listener; its decoder publishes channel and event/log telemetry through that protocol. Handlers registered on the supplied Peer encode dictionary commands as CCSDS telecommands. The plugin creates no additional Peer, protocol, or callback adapter.
+
+Engine 2.1.0 uses plugin ABI 6 and TEMPEST compatibility 3. Rebuild older bridge binaries with the bundled SDK; a manifest edit alone cannot migrate a native library.
+
 ## Connection and settings
 
 The bridge listens on `bind_host:port`; the deployment's TCP client connects to that address. The deployment sends TM frames to the bridge and receives TC frames from it. The `host` field in a saved TEMPEST peer connection is an engine connection setting; **`bind_host` is the address on which this bridge actually listens**. To accept a deployment on another machine, bind to an address reachable from that machine and arrange network access to the selected port.
