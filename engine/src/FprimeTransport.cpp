@@ -363,7 +363,7 @@ struct FprimeTransport::Impl {
           .owner_node = node,
           .timestamp = received,
           .details = event.arguments,
-          .separation_seconds = 0.0};
+          .firing_timeout_seconds = 0.0};
       record.details["fprime_event_id"] =
           static_cast<uint64_t>(read32(payload));
       record.details["fprime_severity"] = event.severity;

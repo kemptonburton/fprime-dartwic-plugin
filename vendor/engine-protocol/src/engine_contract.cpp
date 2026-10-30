@@ -52,7 +52,7 @@ Object event(const ArgusEvent &e) {
       {"title", e.title},         {"description", e.description},
       {"status", e.status},       {"owner_node", e.owner_node},
       {"timestamp", e.timestamp}, {"channels", strings(e.channels)},
-      {"details", e.details},     {"separation_seconds", e.separation_seconds}};
+      {"details", e.details},     {"firing_timeout_seconds", e.firing_timeout_seconds}};
 }
 ArgusEvent event(const Object &o) {
   ArgusEvent result{
@@ -61,22 +61,22 @@ ArgusEvent event(const Object &o) {
       text(o, "status", "new"), text(o, "owner_node"),
       number(o, "timestamp"),   strings(o, "channels"),
       object(o, "details")};
-  if (const auto *value = find(o, "separation_seconds")) {
+  if (const auto *value = find(o, "firing_timeout_seconds")) {
     const auto &storage = value->storage();
     if (const auto *real = std::get_if<double>(&storage))
-      result.separation_seconds = *real;
+      result.firing_timeout_seconds = *real;
     else if (const auto *integer = std::get_if<int64_t>(&storage))
-      result.separation_seconds = static_cast<double>(*integer);
+      result.firing_timeout_seconds = static_cast<double>(*integer);
     else if (const auto *integer = std::get_if<uint64_t>(&storage))
-      result.separation_seconds = static_cast<double>(*integer);
+      result.firing_timeout_seconds = static_cast<double>(*integer);
     else
-      throw TEMPEST::RemoteError("separation_seconds must be numeric.",
+      throw TEMPEST::RemoteError("firing_timeout_seconds must be numeric.",
                                  "invalid_arguments");
   }
-  if (!std::isfinite(result.separation_seconds) ||
-      result.separation_seconds < 0)
+  if (!std::isfinite(result.firing_timeout_seconds) ||
+      result.firing_timeout_seconds < 0)
     throw TEMPEST::RemoteError(
-        "separation_seconds must be finite and nonnegative.",
+        "firing_timeout_seconds must be finite and nonnegative.",
         "invalid_arguments");
   return result;
 }

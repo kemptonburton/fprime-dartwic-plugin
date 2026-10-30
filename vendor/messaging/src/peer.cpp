@@ -83,7 +83,11 @@ struct Peer::Impl : std::enable_shared_from_this<Impl> {
     std::function<void(const std::string&, const Value::Object&)> telemetry_fallback;
     std::function<void(ConnectionState, std::string)> state_handler;
     std::deque<Message> requests;
-    std::deque<std::function<void()>> callbacks;
+    struct Callback {
+        std::string replace_key;
+        std::function<void()> run;
+    };
+    std::deque<Callback> callbacks;
     std::thread request_thread, callback_thread, maintenance_thread;
 
     Impl(PeerConfig c, TransportPtr t) : config(std::move(c)), transport(std::move(t)) {
@@ -102,7 +106,7 @@ struct Peer::Impl : std::enable_shared_from_this<Impl> {
             // State changes must survive telemetry congestion.
             if (callbacks.size() >= config.max_queued_callbacks) { callbacks.pop_back(); ++dropped; }
             auto handler = state_handler;
-            callbacks.push_back([handler, value, reason = std::move(reason)] { handler(value, reason); });
+            callbacks.push_back({{}, [handler, value, reason = std::move(reason)] { handler(value, reason); }});
         }
         cv.notify_all();
     }
@@ -223,11 +227,23 @@ struct Peer::Impl : std::enable_shared_from_this<Impl> {
         if (!running || !ready) return;
         auto found = topics.find(message.name);
         if (found == topics.end() && !telemetry_fallback) return;
+        const bool replaceable = message.name == "tempest-peer/channels/snapshot" ||
+            message.name == "tempest-peer/argus/board-snapshot";
+        if (replaceable && found != topics.end()) {
+            for (auto& callback : callbacks) {
+                if (callback.replace_key == message.name) {
+                    callback.run = [handler = found->second, payload = std::move(message.payload)] { handler(payload); };
+                    ++dropped;
+                    return;
+                }
+            }
+        }
         if (callbacks.size() >= config.max_queued_callbacks) { ++dropped; return; }
         if (found != topics.end())
-            callbacks.push_back([handler = found->second, payload = std::move(message.payload)] { handler(payload); });
+            callbacks.push_back({replaceable ? message.name : std::string{},
+                [handler = found->second, payload = std::move(message.payload)] { handler(payload); }});
         else
-            callbacks.push_back([handler = telemetry_fallback, topic = std::move(message.name), payload = std::move(message.payload)] { handler(topic, payload); });
+            callbacks.push_back({{}, [handler = telemetry_fallback, topic = std::move(message.name), payload = std::move(message.payload)] { handler(topic, payload); }});
         cv.notify_all();
     }
 
@@ -343,7 +359,7 @@ struct Peer::Impl : std::enable_shared_from_this<Impl> {
         while (running || !callbacks.empty()) {
             cv.wait(lock, [&] { return !running || !callbacks.empty(); });
             if (callbacks.empty()) break;
-            auto callback = std::move(callbacks.front());
+            auto callback = std::move(callbacks.front().run);
             callbacks.pop_front();
             lock.unlock();
             try { callback(); } catch (...) {}

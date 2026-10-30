@@ -30,7 +30,9 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/TEMPESTPeerConfig.cmake ${CMAKE_CURREN
 
 if(PROJECT_IS_TOP_LEVEL)
     add_executable(TEMPESTPeer_Example EXCLUDE_FROM_ALL examples/peer.cpp)
-    target_link_libraries(TEMPESTPeer_Example PRIVATE DARTWIC::PeerClient)
+    target_link_libraries(TEMPESTPeer_Example PRIVATE DARTWIC::EngineProtocolPeer)
+    add_executable(TEMPESTProtocolPeer_Example EXCLUDE_FROM_ALL examples/tempest_peer.cpp)
+    target_link_libraries(TEMPESTProtocolPeer_Example PRIVATE TEMPEST::Peer)
 endif()
 
 if(NOT TARGET DARTWIC::EngineProtocol)
@@ -45,6 +47,7 @@ if(NOT TARGET DARTWIC::EngineProtocol)
 endif()
 add_library(DARTWICPeerClient INTERFACE)
 add_library(DARTWIC::PeerClient ALIAS DARTWICPeerClient)
+add_library(DARTWIC::EngineProtocolPeer ALIAS DARTWICPeerClient)
 set_target_properties(DARTWICPeerClient PROPERTIES EXPORT_NAME PeerClient)
 target_link_libraries(DARTWICPeerClient INTERFACE TEMPEST::Peer DARTWIC::EngineProtocol)
 install(TARGETS DARTWICPeerClient EXPORT DARTWICPeerClientTargets)

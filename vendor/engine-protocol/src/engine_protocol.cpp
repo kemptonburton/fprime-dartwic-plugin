@@ -282,9 +282,9 @@ void EngineProtocol::Channels::publishSnapshotTelemetry(
   p->publish(std::move(s));
 }
 std::string EngineProtocol::Argus::publishEventTelemetry(ArgusEvent e) const {
-  if (!std::isfinite(e.separation_seconds) || e.separation_seconds < 0)
+  if (!std::isfinite(e.firing_timeout_seconds) || e.firing_timeout_seconds < 0)
     throw TEMPEST::Error(
-        "Event requires finite nonnegative separation_seconds");
+        "Event requires finite nonnegative firing_timeout_seconds");
   auto p = owner_->impl_;
   {
     std::lock_guard lock(p->mutex);
@@ -307,7 +307,7 @@ void EngineProtocol::Argus::publishSnapshotTelemetry(
     if (e.owner_node.empty())
       e.owner_node = s.owner_node;
     if (e.owner_node != s.owner_node || e.event_id.empty() ||
-        !std::isfinite(e.separation_seconds) || e.separation_seconds < 0)
+        !std::isfinite(e.firing_timeout_seconds) || e.firing_timeout_seconds < 0)
       throw TEMPEST::Error("Invalid board event");
   }
   p->publish(std::move(s));

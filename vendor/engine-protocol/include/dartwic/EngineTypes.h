@@ -90,7 +90,7 @@ struct ArgusEvent {
   uint64_t timestamp = 0;
   std::vector<std::string> channels;
   Value::Object details;
-  double separation_seconds = std::numeric_limits<double>::quiet_NaN();
+  double firing_timeout_seconds = std::numeric_limits<double>::quiet_NaN();
 };
 /** ARGUS event selection by identity, status, type, owner, time range, limit,
  * and additional filters. */

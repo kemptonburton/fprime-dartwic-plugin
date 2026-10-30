@@ -167,15 +167,34 @@ struct Runtime:std::enable_shared_from_this<Runtime>{
             auto incoming = std::move(telemetry_inbox.front()); telemetry_inbox.pop_front();
             lock.unlock();
             try {
-                auto value = Json::parseValue(incoming.wire);
-                auto& envelope = std::get<Value::Object>(value.storage());
+                // Engine-owned peers consume this complete snapshot through a
+                // private JSON path. Its envelope is small and precedes the
+                // payload in the wire produced below; preserve ordinary typed
+                // dispatch for standalone peers and other telemetry.
+                const bool raw_snapshot = !standalone &&
+                    (incoming.topic.ends_with("/tempest-peer/channels/snapshot") ||
+                     incoming.topic.ends_with("/tempest-peer/argus/board-snapshot"));
+                const auto payload_offset = raw_snapshot ? incoming.wire.find(",\"payload\":") : std::string::npos;
+                Value::Object envelope;
+                if (payload_offset != std::string::npos) {
+                    std::string header = incoming.wire.substr(0, payload_offset);
+                    header.push_back('}');
+                    envelope = Json::toObject(JsonObject::parse(header));
+                } else {
+                    auto value = Json::parseValue(incoming.wire);
+                    envelope = std::move(std::get<Value::Object>(value.storage()));
+                }
                 if (envelope.at("kind").string() != "telemetry") throw Error("Invalid telemetry kind.");
                 const auto& sender = envelope.at(envelope.contains("clientId") ? "clientId" : "sender").string();
                 const auto& target = envelope.at("targetPeer").string();
                 auto name = envelope.at("topic").string();
+                const auto wire_size = incoming.wire.size();
+                auto payload = payload_offset != std::string::npos
+                    ? Value::Object{{"__tempest_engine_snapshot_wire", std::move(incoming.wire)}}
+                    : std::move(std::get<Value::Object>(envelope.at("payload").storage()));
                 Message message{Message::Kind::Telemetry,
                     envelope.contains("requestId") ? envelope.at("requestId").string() : std::string{}, std::move(name),
-                    std::move(std::get<Value::Object>(envelope.at("payload").storage())),
+                    std::move(payload),
                     envelope.contains("error") && std::get<bool>(envelope.at("error").storage()),
                     envelope.contains("code") ? envelope.at("code").string() : std::string{}};
                 std::function<void(Message)> callback;
@@ -184,7 +203,7 @@ struct Runtime:std::enable_shared_from_this<Runtime>{
                     auto found = slots.find(target);
                     if (found != slots.end() && found->second->active && found->second->remote_id == sender) {
                         auto& slot = *found->second;
-                        slot.last_receive_ms = nowMs(); slot.bytes_received += incoming.wire.size();
+                        slot.last_receive_ms = nowMs(); slot.bytes_received += wire_size;
                         callback = slot.receive;
                     }
                 }

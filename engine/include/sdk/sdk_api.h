@@ -90,6 +90,8 @@ namespace DARTWIC::API {
 
     /**
      * Controls when channel values are recorded to persistence.
+     * EveryValueExcludeAutorecord records every accepted sample (including equal
+     * values and timestamped batches) and skips periodic snapshots; requires Engine 2.1.0.
      *
      * @dartwic-reference
      * @category Channels
@@ -97,7 +99,8 @@ namespace DARTWIC::API {
     enum class RecordMode {
         OnValueChange,
         Never,
-        EveryValue
+        EveryValue,
+        EveryValueExcludeAutorecord
     };
 
     /**
@@ -665,27 +668,274 @@ namespace DARTWIC::API {
          */
         virtual std::string registerLoop(std::string local_id, std::string name, PluginLoopDefinition definition) = 0;
 
-        /**
-         * Raises an operator-visible error and returns the created event identifier.
+        /** Report an ARGUS message using the same arguments and defaults as DCode.
+         *
+         * Reports synchronously to the in-memory event path; recording and telemetry are asynchronous.
+         * Does not stop tasks, command equipment, or wait for acknowledgement. May allocate and lock.
+         * Invalid arguments or host failures throw; a numeric result is not an event ID or durability guarantee.
          * @dartwic-reference
          * @category Events
-         * @param message_title Short error title.
-         * @param message_description Detailed error description.
-         * @param tags Searchable event tags.
-         * @param resolution Suggested operator resolution.
-         * @param auto_acknowledge Non-zero to acknowledge automatically.
-         * @param separation_seconds Required finite nonnegative quiet interval; zero requires explicit stop.
-         * @returns The created ARGUS event identifier.
+         * @param title Event identity within system/subsystem; use distinct titles for distinct modules.
+         * @param description Operator-facing body text.
+         * @param channels Flat series or nested graph groups, including |channel|@1 and >100@1.
+         * @param resolution Recommended operator action.
+         * @param auto_acknowledge Seconds before visual acknowledgement; zero disables it.
+         * @param firing_timeout_seconds Finite nonnegative inactivity timeout; defaults to 5. Zero requires stop_event_firing.
+         * @param system ARGUS system grouping; defaults to SOFTWARE.
+         * @param subsystem ARGUS subsystem grouping; defaults to DCODE, matching DCode.
+         * @returns Numeric host result, normally 1; not an event ID.
+         * @example api.message("Device connection", "Device disconnected", {"|temperature|"}, "Check connection", 0, 5);
          */
-        virtual int consoleError(
-            std::string message_title,
-            std::string message_description,
-            std::vector<std::string> tags,
-            std::string resolution,
-            int auto_acknowledge,
-            double separation_seconds
-        ) = 0;
+        virtual int message(const std::string& title, const std::string& description,
+            nlohmann::json channels = nlohmann::json::array(), const std::string& resolution = "",
+            int auto_acknowledge = 0,
+            double firing_timeout_seconds = 5, const std::string& system = "SOFTWARE",
+            const std::string& subsystem = "DCODE") {
+            return reportEvent("message", title, description, channels, resolution, auto_acknowledge,
+                firing_timeout_seconds, system, subsystem);
+        }
 
+        /** Report an ARGUS warning using the same arguments and defaults as DCode.
+         *
+         * Reports synchronously to the in-memory event path; recording and telemetry are asynchronous.
+         * Does not stop tasks, command equipment, or wait for acknowledgement. May allocate and lock.
+         * Invalid arguments or host failures throw; a numeric result is not an event ID or durability guarantee.
+         * @dartwic-reference
+         * @category Events
+         * @param title Event identity within system/subsystem; use distinct titles for distinct modules.
+         * @param description Operator-facing body text.
+         * @param channels Flat series or nested graph groups, including |channel|@1 and >100@1.
+         * @param resolution Recommended operator action.
+         * @param auto_acknowledge Seconds before visual acknowledgement; zero disables it.
+         * @param firing_timeout_seconds Finite nonnegative inactivity timeout; defaults to 5. Zero requires stop_event_firing.
+         * @param system ARGUS system grouping; defaults to SOFTWARE.
+         * @param subsystem ARGUS subsystem grouping; defaults to DCODE, matching DCode.
+         * @returns Numeric host result, normally 1; not an event ID.
+         * @example api.warning("Device connection", "Device disconnected", {"|temperature|"}, "Check connection", 0, 5);
+         */
+        virtual int warning(const std::string& title, const std::string& description,
+            nlohmann::json channels = nlohmann::json::array(), const std::string& resolution = "",
+            int auto_acknowledge = 0,
+            double firing_timeout_seconds = 5, const std::string& system = "SOFTWARE",
+            const std::string& subsystem = "DCODE") {
+            return reportEvent("warning", title, description, channels, resolution, auto_acknowledge,
+                firing_timeout_seconds, system, subsystem);
+        }
+
+        /** Report an ARGUS error using the same arguments and defaults as DCode.
+         *
+         * Reports synchronously to the in-memory event path; recording and telemetry are asynchronous.
+         * Does not stop tasks, command equipment, or wait for acknowledgement. May allocate and lock.
+         * Invalid arguments or host failures throw; a numeric result is not an event ID or durability guarantee.
+         * @dartwic-reference
+         * @category Events
+         * @param title Event identity within system/subsystem; use distinct titles for distinct modules.
+         * @param description Operator-facing body text.
+         * @param channels Flat series or nested graph groups, including |channel|@1 and >100@1.
+         * @param resolution Recommended operator action.
+         * @param auto_acknowledge Seconds before visual acknowledgement; zero disables it.
+         * @param firing_timeout_seconds Finite nonnegative inactivity timeout; defaults to 5. Zero requires stop_event_firing.
+         * @param system ARGUS system grouping; defaults to SOFTWARE.
+         * @param subsystem ARGUS subsystem grouping; defaults to DCODE, matching DCode.
+         * @returns Numeric host result, normally 1; not an event ID.
+         * @example api.error("Device connection", "Device disconnected", {"|temperature|"}, "Check connection", 0, 5);
+         */
+        virtual int error(const std::string& title, const std::string& description,
+            nlohmann::json channels = nlohmann::json::array(), const std::string& resolution = "",
+            int auto_acknowledge = 0,
+            double firing_timeout_seconds = 5, const std::string& system = "SOFTWARE",
+            const std::string& subsystem = "DCODE") {
+            return reportEvent("error", title, description, channels, resolution, auto_acknowledge,
+                firing_timeout_seconds, system, subsystem);
+        }
+
+        /** Report an ARGUS abort using the same arguments and defaults as DCode.
+         *
+         * Reports synchronously to the in-memory event path; recording and telemetry are asynchronous.
+         * Does not stop tasks, command equipment, or wait for acknowledgement. May allocate and lock.
+         * Invalid arguments or host failures throw; a numeric result is not an event ID or durability guarantee.
+         * @dartwic-reference
+         * @category Events
+         * @param title Event identity within system/subsystem; use distinct titles for distinct modules.
+         * @param description Operator-facing body text.
+         * @param channels Flat series or nested graph groups, including |channel|@1 and >100@1.
+         * @param resolution Recommended operator action.
+         * @param auto_acknowledge Seconds before visual acknowledgement; zero disables it.
+         * @param firing_timeout_seconds Finite nonnegative inactivity timeout; defaults to 5. Zero requires stop_event_firing.
+         * @param system ARGUS system grouping; defaults to SOFTWARE.
+         * @param subsystem ARGUS subsystem grouping; defaults to DCODE, matching DCode.
+         * @returns Numeric host result, normally 1; not an event ID.
+         * @example api.abort("Device connection", "Device disconnected", {"|temperature|"}, "Check connection", 0, 5);
+         */
+        virtual int abort(const std::string& title, const std::string& description,
+            nlohmann::json channels = nlohmann::json::array(), const std::string& resolution = "",
+            int auto_acknowledge = 0,
+            double firing_timeout_seconds = 5, const std::string& system = "SOFTWARE",
+            const std::string& subsystem = "DCODE") {
+            return reportEvent("abort", title, description, channels, resolution, auto_acknowledge,
+                firing_timeout_seconds, system, subsystem);
+        }
+
+        /** Block the calling thread until the hold is released.
+         *
+         * Uses the DCode argument order and graph syntax. No firing timeout; completion ends firing.
+         * Acknowledgement or stop_event_firing does not complete the wait. May allocate, lock, and wait indefinitely.
+         * Unlike a DCode timeline prompt, a C++ SDK call blocks its invoking thread.
+         * @dartwic-reference
+         * @category Events
+         * @param title Workflow title.
+         * @param description Operator-facing body text.
+         * @param channels Flat series or nested graph groups, as in DCode.
+         * @param resolution Recommended operator action.
+         * @param auto_acknowledge Seconds before visual acknowledgement; zero disables it.
+         * @param system ARGUS system grouping; defaults to SOFTWARE.
+         * @param subsystem ARGUS subsystem grouping; defaults to DCODE.
+         * @returns Numeric host result, normally 1 after release. Unsupported hosts and workflow failures throw.
+         */
+        virtual int hold(const std::string& title, const std::string& description,
+            nlohmann::json channels = nlohmann::json::array(), const std::string& resolution = "",
+            int auto_acknowledge = 0, const std::string& system = "SOFTWARE",
+            const std::string& subsystem = "DCODE") {
+            throw std::runtime_error("ARGUS hold is not supported by this host.");
+        }
+
+        /** Block the calling thread until a numerical response arrives.
+         *
+         * Uses the DCode argument order and graph syntax. No firing timeout; completion ends firing.
+         * Acknowledgement or stop_event_firing does not complete the wait. May allocate, lock, and wait indefinitely.
+         * Unlike a DCode timeline prompt, a C++ SDK call blocks its invoking thread.
+         * @dartwic-reference
+         * @category Events
+         * @param title Workflow title.
+         * @param description Operator-facing body text.
+         * @param channels Flat series or nested graph groups, as in DCode.
+         * @param resolution Recommended operator action.
+         * @param auto_acknowledge Seconds before visual acknowledgement; zero disables it.
+         * @param system ARGUS system grouping; defaults to SOFTWARE.
+         * @param subsystem ARGUS subsystem grouping; defaults to DCODE.
+         * @returns Operator numeric response. Unsupported hosts and workflow failures throw.
+         */
+        virtual double promptNumerical(const std::string& title, const std::string& description,
+            nlohmann::json channels = nlohmann::json::array(), const std::string& resolution = "",
+            int auto_acknowledge = 0, const std::string& system = "SOFTWARE",
+            const std::string& subsystem = "DCODE") {
+            throw std::runtime_error("ARGUS promptNumerical is not supported by this host.");
+        }
+
+        /** Block the calling thread until a yes/no response arrives.
+         *
+         * Uses the DCode argument order and graph syntax. No firing timeout; completion ends firing.
+         * Acknowledgement or stop_event_firing does not complete the wait. May allocate, lock, and wait indefinitely.
+         * Unlike a DCode timeline prompt, a C++ SDK call blocks its invoking thread.
+         * @dartwic-reference
+         * @category Events
+         * @param title Workflow title.
+         * @param description Operator-facing body text.
+         * @param channels Flat series or nested graph groups, as in DCode.
+         * @param resolution Recommended operator action.
+         * @param auto_acknowledge Seconds before visual acknowledgement; zero disables it.
+         * @param system ARGUS system grouping; defaults to SOFTWARE.
+         * @param subsystem ARGUS subsystem grouping; defaults to DCODE.
+         * @returns 1 for yes, 0 for no. Unsupported hosts and workflow failures throw.
+         */
+        virtual int promptYesNo(const std::string& title, const std::string& description,
+            nlohmann::json channels = nlohmann::json::array(), const std::string& resolution = "",
+            int auto_acknowledge = 0, const std::string& system = "SOFTWARE",
+            const std::string& subsystem = "DCODE") {
+            throw std::runtime_error("ARGUS promptYesNo is not supported by this host.");
+        }
+
+        /** Block the calling thread until a text response arrives.
+         *
+         * Uses the DCode argument order and graph syntax. No firing timeout; completion ends firing.
+         * Acknowledgement or stop_event_firing does not complete the wait. May allocate, lock, and wait indefinitely.
+         * Unlike a DCode timeline prompt, a C++ SDK call blocks its invoking thread.
+         * @dartwic-reference
+         * @category Events
+         * @param title Workflow title.
+         * @param description Operator-facing body text.
+         * @param channels Flat series or nested graph groups, as in DCode.
+         * @param resolution Recommended operator action.
+         * @param auto_acknowledge Seconds before visual acknowledgement; zero disables it.
+         * @param system ARGUS system grouping; defaults to SOFTWARE.
+         * @param subsystem ARGUS subsystem grouping; defaults to DCODE.
+         * @returns Operator text response. Unsupported hosts and workflow failures throw.
+         */
+        virtual std::string promptString(const std::string& title, const std::string& description,
+            nlohmann::json channels = nlohmann::json::array(), const std::string& resolution = "",
+            int auto_acknowledge = 0, const std::string& system = "SOFTWARE",
+            const std::string& subsystem = "DCODE") {
+            throw std::runtime_error("ARGUS promptString is not supported by this host.");
+        }
+
+        /** Block the calling thread until an option is selected.
+         *
+         * Uses the DCode argument order and graph syntax. No firing timeout; completion ends firing.
+         * Acknowledgement or stop_event_firing does not complete the wait. May allocate, lock, and wait indefinitely.
+         * Unlike a DCode timeline prompt, a C++ SDK call blocks its invoking thread.
+         * @dartwic-reference
+         * @category Events
+         * @param title Workflow title.
+         * @param description Operator-facing body text.
+         * @param options Operator choices.
+         * @param channels Flat series or nested graph groups, as in DCode.
+         * @param resolution Recommended operator action.
+         * @param auto_acknowledge Seconds before visual acknowledgement; zero disables it.
+         * @param system ARGUS system grouping; defaults to SOFTWARE.
+         * @param subsystem ARGUS subsystem grouping; defaults to DCODE.
+         * @returns Selected option text. Unsupported hosts and workflow failures throw.
+         */
+        virtual std::string promptOptions(const std::string& title, const std::string& description,
+            const std::vector<std::string>& options,
+            nlohmann::json channels = nlohmann::json::array(), const std::string& resolution = "",
+            int auto_acknowledge = 0, const std::string& system = "SOFTWARE",
+            const std::string& subsystem = "DCODE") {
+            throw std::runtime_error("ARGUS promptOptions is not supported by this host.");
+        }
+
+        /** Release all active hold requests with this title on the current Engine.
+         * Completes local release synchronously; recording and telemetry are asynchronous. May allocate and lock.
+         * Does not release a timeline clock hold. Channel-write failures throw.
+         * @dartwic-reference
+         * @category Events
+         * @param title Hold title.
+         * @returns 1 when matching requests are released, 0 when none match.
+         */
+        virtual int releaseHold(const std::string& title) {
+            throw std::runtime_error("ARGUS releaseHold is not supported by this host.");
+        }
+
+    protected:
+        static nlohmann::json eventGraphs(const nlohmann::json& channels) {
+            if (channels.is_null() || (channels.is_array() && channels.empty())) return nlohmann::json::array();
+            if (!channels.is_array()) throw std::invalid_argument("ARGUS channels must be an array.");
+            const bool grouped = channels.front().is_array();
+            for (const auto& group : channels) {
+                if (grouped) {
+                    if (!group.is_array()) throw std::invalid_argument("ARGUS graph groups must be arrays of strings.");
+                    for (const auto& series : group)
+                        if (!series.is_string()) throw std::invalid_argument("ARGUS graph series must be strings.");
+                } else if (!group.is_string()) {
+                    throw std::invalid_argument("ARGUS graph series must be strings.");
+                }
+            }
+            return grouped ? channels : nlohmann::json::array({channels});
+        }
+
+    private:
+        int reportEvent(const std::string& type, const std::string& title, const std::string& description,
+            const nlohmann::json& channels, const std::string& resolution, int auto_acknowledge,
+            double firing_timeout_seconds, const std::string& system, const std::string& subsystem) {
+            const auto result = recordEvent({{"type", type}, {"title", title}, {"description", description},
+                {"graphs", eventGraphs(channels)}, {"resolution", resolution},
+                {"auto_acknowledge_seconds", auto_acknowledge}, {"firing_timeout_seconds", firing_timeout_seconds},
+                {"system", system}, {"subsystem", subsystem},
+                {"actions", type == "abort" ? std::vector<std::string>{"acknowledge", "delete"}
+                    : std::vector<std::string>{"acknowledge", "silence", "delete"}}});
+            return result.is_object() && !result.empty() ? 1 : 0;
+        }
+
+    public:
         /**
          * Returns a live module instance by configured instance name.
          * @dartwic-reference
@@ -772,6 +1022,19 @@ namespace DARTWIC::API {
          */
         virtual nlohmann::json recordEvent(nlohmann::json event) { return nlohmann::json::object(); }
 
+        /** End the locally owned event's current firing without resolving or deleting it.
+         * Synchronous state and declared-event reactions complete before return;
+         * persistence and telemetry remain asynchronous. Repeated or absent stops return false.
+         * @dartwic-reference
+         * @category Events
+         * @param title Event title.
+         * @param system Event system.
+         * @param subsystem Event subsystem.
+         * @return Whether an active firing ended.
+         */
+        virtual bool stop_event_firing(const std::string& title, const std::string& system = "SOFTWARE",
+            const std::string& subsystem = "DCODE") { return false; }
+
         /**
          * Updates the lifecycle status of an ARGUS event by event identifier.
          * @param event_id Event identifier to update.
@@ -853,6 +1116,38 @@ namespace DARTWIC::API {
             (void)channel;
             (void)level;
             return false;
+        }
+
+        /** Appends an info line to a plugin-local ARGUS stream.
+         * @dartwic-reference
+         * @category Logs
+         * @param stream Plugin-local stream name.
+         * @param text Message; this helper appends a newline.
+         * @returns Asynchronous recording admission, not persistence or delivery.
+         * @example api.log("Bus", "Device connected");
+         */
+        bool log(const std::string& stream, const std::string& text) {
+            return writeLog(stream, text + "\n", "stdout", "info");
+        }
+        /** Appends a warning line without creating an operator event.
+         * @dartwic-reference
+         * @category Logs
+         * @param stream Plugin-local stream name.
+         * @param text Message; this helper appends a newline.
+         * @returns Asynchronous recording admission; formatting may allocate.
+         */
+        bool log_warning(const std::string& stream, const std::string& text) {
+            return writeLog(stream, text + "\n", "stdout", "warning");
+        }
+        /** Appends an error line without creating an operator event.
+         * @dartwic-reference
+         * @category Logs
+         * @param stream Plugin-local stream name.
+         * @param text Message; this helper appends a newline.
+         * @returns Asynchronous recording admission; formatting may allocate.
+         */
+        bool log_error(const std::string& stream, const std::string& text) {
+            return writeLog(stream, text + "\n", "stderr", "error");
         }
 
         /** Optional channel references held only in plugin-private memory.
